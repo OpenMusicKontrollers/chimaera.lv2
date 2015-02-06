@@ -18,6 +18,7 @@ add_library(chimaera MODULE
 	chimaera.c
 	libosc/osc.c
 	event_in.c
+	filter.c
 	control_out.c
 	midi_out.c
 	osc_out.c)

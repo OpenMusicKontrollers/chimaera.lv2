@@ -29,13 +29,15 @@ struct _handle_t {
 	LV2_URID_Map *map;
 	struct {
 		LV2_URID chim_Event;
-		LV2_URID osc_OscEvent;
 	} uris;
 
 	osc_data_t buf [BUF_SIZE];
 
 	const LV2_Atom_Sequence *event_in;
-	LV2_Atom_Sequence *osc_out;
+	const float *group_sel;
+	const float *north_sel;
+	const float *south_sel;
+	LV2_Atom_Sequence *event_out;
 	LV2_Atom_Forge forge;
 };
 
@@ -59,7 +61,6 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 	}
 
 	handle->uris.chim_Event = handle->map->map(handle->map->handle, CHIMAERA_EVENT_URI);
-	handle->uris.osc_OscEvent = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
 	lv2_atom_forge_init(&handle->forge, handle->map);
 
 	return handle;
@@ -76,7 +77,16 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->osc_out = (LV2_Atom_Sequence *)data;
+			handle->group_sel = (const float *)data;
+			break;
+		case 2:
+			handle->north_sel = (const float *)data;
+			break;
+		case 3:
+			handle->south_sel = (const float *)data;
+			break;
+		case 4:
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		default:
 			break;
@@ -91,83 +101,18 @@ activate(LV2_Handle instance)
 }
 
 static inline void
-_osc_event(handle_t *handle, int64_t frames, osc_data_t *o, size_t len)
+_chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	LV2_Atom_Forge *forge = &handle->forge;
 		
-	LV2_Atom osc_atom;
-	osc_atom.type = handle->uris.osc_OscEvent;
-	osc_atom.size = len;
+	LV2_Atom chim_atom;
+	chim_atom.type = handle->uris.chim_Event;
+	chim_atom.size = sizeof(chimaera_event_t);
 		
 	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_raw(forge, &osc_atom, sizeof(LV2_Atom));
-	lv2_atom_forge_raw(forge, o, len);
-	lv2_atom_forge_pad(forge, len);
-}
-
-static void
-_osc_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
-{
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/s_new", "siiiiisisi",
-		"base", cev->sid, 0, cev->gid,
-		4, cev->pid,
-		"out", cev->gid,
-		"gate", 1);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
-}
-
-static void
-_osc_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
-{
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/n_set", "isi",
-		cev->sid,
-		"gate", 0);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
-}
-
-static void
-_osc_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
-{
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/n_setn", "iiiffff",
-		cev->sid, 0, 4,
-		cev->x, cev->z, cev->X, cev->Z);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
-}
-
-static void
-_osc_idle(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
-{
-	// do nothing
+	lv2_atom_forge_raw(forge, &chim_atom, sizeof(LV2_Atom));
+	lv2_atom_forge_raw(forge, cev, sizeof(chimaera_event_t));
+	lv2_atom_forge_pad(forge, sizeof(chimaera_event_t));
 }
 
 static void
@@ -175,10 +120,15 @@ run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
+	uint32_t gid = *handle->group_sel;
+	uint32_t north = *handle->north_sel ? 0x80 : 0;
+	uint32_t south = *handle->south_sel ? 0x100 : 0;
+	uint32_t pol = north | south;
+
 	// prepare osc atom forge
-	const uint32_t capacity = handle->osc_out->atom.size;
+	const uint32_t capacity = handle->event_out->atom.size;
 	LV2_Atom_Forge *forge = &handle->forge;
-	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
+	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
@@ -191,21 +141,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 			size_t len = ev->body.size;
 			const chimaera_event_t *cev = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
 
-			switch(cev->state)
-			{
-				case CHIMAERA_STATE_ON:
-					_osc_on(handle, frames, cev);
-					// fall-through
-				case CHIMAERA_STATE_SET:
-					_osc_set(handle, frames, cev);
-					break;
-				case CHIMAERA_STATE_OFF:
-					_osc_off(handle, frames, cev);
-					break;
-				case CHIMAERA_STATE_IDLE:
-					_osc_idle(handle, frames, cev);
-					break;
-			}
+			if( (cev->gid == gid) && (cev->pid & pol) )
+				_chim_event(handle, frames, cev);
 		}
 	}
 
@@ -233,8 +170,8 @@ extension_data(const char* uri)
 	return NULL;
 }
 
-const LV2_Descriptor osc_out = {
-	.URI						= CHIMAERA_OSC_OUT_URI,
+const LV2_Descriptor filter = {
+	.URI						= CHIMAERA_FILTER_URI,
 	.instantiate		= instantiate,
 	.connect_port		= connect_port,
 	.activate				= activate,

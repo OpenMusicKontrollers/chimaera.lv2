@@ -29,9 +29,6 @@ struct _handle_t {
 	} uris;
 
 	const LV2_Atom_Sequence *event_in;
-	const float *group_sel;
-	const float *north_sel;
-	const float *south_sel;
 	float *gate;
 	float *sid;
 	float *north;
@@ -46,7 +43,7 @@ static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
-	handle_t *handle = (handle_t *)calloc(1, sizeof(handle_t));
+	handle_t *handle = calloc(1, sizeof(handle_t));
 	if(!handle)
 		return NULL;
 
@@ -77,36 +74,27 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->group_sel = (const float *)data;
-			break;
-		case 2:
-			handle->north_sel = (const float *)data;
-			break;
-		case 3:
-			handle->south_sel = (const float *)data;
-			break;
-		case 4:
 			handle->gate = (float *)data;
 			break;
-		case 5:
+		case 2:
 			handle->sid = (float *)data;
 			break;
-		case 6:
+		case 3:
 			handle->north = (float *)data;
 			break;
-		case 7:
+		case 4:
 			handle->south = (float *)data;
 			break;
-		case 8:
+		case 5:
 			handle->x = (float *)data;
 			break;
-		case 9:
+		case 6:
 			handle->z = (float *)data;
 			break;
-		case 10:
+		case 7:
 			handle->X = (float *)data;
 			break;
-		case 11:
+		case 8:
 			handle->Z = (float *)data;
 			break;
 		default:
@@ -134,11 +122,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 			int64_t frames = ev->time.frames;
 			size_t len = ev->body.size;
 			const chimaera_event_t *cev = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
-
-			if(cev->gid != *handle->group_sel)
-				continue;
-
-			//TODO check polarity
 
 			switch(cev->state)
 			{

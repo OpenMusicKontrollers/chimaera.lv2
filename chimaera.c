@@ -18,6 +18,7 @@
 #include <chimaera.h>
 
 extern const LV2_Descriptor event_in;
+extern const LV2_Descriptor filter;
 extern const LV2_Descriptor control_out;
 extern const LV2_Descriptor midi_out;
 extern const LV2_Descriptor osc_out;
@@ -30,10 +31,12 @@ lv2_descriptor(uint32_t index)
 		case 0:
 			return &event_in;
 		case 1:
-			return &control_out;
+			return &filter;
 		case 2:
-			return &midi_out;
+			return &control_out;
 		case 3:
+			return &midi_out;
+		case 4:
 			return &osc_out;
 		default:
 			return NULL;

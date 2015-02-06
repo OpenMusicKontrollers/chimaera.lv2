@@ -60,7 +60,7 @@ static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
-	handle_t *handle = (handle_t *)calloc(1, sizeof(handle_t));
+	handle_t *handle = calloc(1, sizeof(handle_t));
 	if(!handle)
 		return NULL;
 
@@ -133,6 +133,9 @@ _on(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t 
 	cev.state = CHIMAERA_STATE_ON;
 
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
+	dict = _dict_ref(handle, 0);
+	if(!dict)
+		return 1;
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.gid);
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.pid);
 	ptr = osc_get_float(ptr, &cev.x);
@@ -150,7 +153,6 @@ _on(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t 
 
 	_chim_event(handle, time, &cev);
 
-	dict = _dict_ref(handle, 0);
 	dict->sid = cev.sid;
 	dict->gid = cev.gid;
 	dict->pid = cev.pid;
@@ -170,6 +172,8 @@ _off(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
 	dict = _dict_ref(handle, cev.sid);
+	if(!dict)
+		return 1;
 	cev.gid = dict->gid;
 	cev.pid = dict->pid;
 	cev.x = 0.f;
@@ -198,6 +202,8 @@ _set(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
 	dict = _dict_ref(handle, cev.sid);
+	if(!dict)
+		return 1;
 	cev.gid = dict->gid;
 	cev.pid = dict->pid;
 	ptr = osc_get_float(ptr, &cev.x);

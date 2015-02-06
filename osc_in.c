@@ -210,7 +210,7 @@ static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
-	handle_t *handle = (handle_t *)calloc(1, sizeof(handle_t));
+	handle_t *handle = calloc(1, sizeof(handle_t));
 	if(!handle)
 		return NULL;
 
