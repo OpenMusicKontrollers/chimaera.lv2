@@ -1,0 +1,3 @@
+[submodule "libosc"]
+	path = libosc
+	url = https://github.com/OpenMusicKontrollers/libosc.git
