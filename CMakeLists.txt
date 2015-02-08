@@ -17,7 +17,8 @@ set(LIBS ${LIBS} ${LV2_LDFLAGS})
 add_library(chimaera MODULE
 	chimaera.c
 	libosc/osc.c
-	event_in.c
+	dummy_in.c
+	tuio2_in.c
 	filter.c
 	control_out.c
 	midi_out.c

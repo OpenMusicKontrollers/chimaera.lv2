@@ -149,6 +149,7 @@ _on(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t 
 	{
 		cev.X = 0.f;
 		cev.Z = 0.f;
+		//TODO calculate !
 	}
 
 	_chim_event(handle, time, &cev);
@@ -246,7 +247,7 @@ _idle(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_
 	return 1;
 }
 
-const osc_method_t dummy [] = {
+static const osc_method_t dummy [] = {
 	{"/on", "iiiff", _on},
 	{"/on", "iiiffff", _on},
 
@@ -310,8 +311,8 @@ extension_data(const char* uri)
 	return NULL;
 }
 
-const LV2_Descriptor event_in = {
-	.URI						= CHIMAERA_EVENT_IN_URI,
+const LV2_Descriptor dummy_in = {
+	.URI						= CHIMAERA_DUMMY_IN_URI,
 	.instantiate		= instantiate,
 	.connect_port		= connect_port,
 	.activate				= activate,

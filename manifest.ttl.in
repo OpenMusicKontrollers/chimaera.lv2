@@ -18,7 +18,12 @@
 
 @prefix chim:	<http://open-music-kontrollers.ch/lv2/chimaera#> .
 
-chim:event_in
+chim:dummy_in
+	a lv2:Plugin ;
+	lv2:binary <chimaera@LIB_EXT@> ;
+	rdfs:seeAlso <chimaera.ttl> .
+
+chim:tuio2_in
 	a lv2:Plugin ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
