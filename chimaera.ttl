@@ -91,13 +91,24 @@ chim:tuio2_in
 		lv2:name "OSC Input" ;
 	] ;
 
+	# input control ports
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 1 ;
+		lv2:symbol "reset" ;
+		lv2:name "Reset" ;
+		lv2:default 0.0 ;
+		lv2:portProperty lv2:toggled ;
+	] ;
+
 	# output chimaera port
 	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports chim:Event ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
 	] .
@@ -129,9 +140,9 @@ chim:filter
 		lv2:index 1 ;
 		lv2:symbol "group_sel" ;
 		lv2:name "Group Select" ;
-		lv2:default 0.0 ;
-		lv2:minimum 0.0 ;
-		lv2:maximum 8.0 ;
+		lv2:default 255 ;
+		lv2:minimum 0 ;
+		lv2:maximum 255 ;
 		lv2:portProperty lv2:integer ;
 	] ;
 
@@ -155,13 +166,53 @@ chim:filter
 		lv2:portProperty lv2:toggled ;
 	] ;
 
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 4 ;
+		lv2:symbol "on_sel" ;
+		lv2:name "On Event Select" ;
+		lv2:default 1.0 ;
+		lv2:portProperty lv2:toggled ;
+	] ;
+
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 5 ;
+		lv2:symbol "off_sel" ;
+		lv2:name "Off Event Select" ;
+		lv2:default 1.0 ;
+		lv2:portProperty lv2:toggled ;
+	] ;
+
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 6 ;
+		lv2:symbol "set_sel" ;
+		lv2:name "Set Event Select" ;
+		lv2:default 1.0 ;
+		lv2:portProperty lv2:toggled ;
+	] ;
+
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 7 ;
+		lv2:symbol "idle_sel" ;
+		lv2:name "Idle Event Select" ;
+		lv2:default 1.0 ;
+		lv2:portProperty lv2:toggled ;
+	] ;
+
 	# output event port
 	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports chim:Event ;
-		lv2:index 4 ;
+		lv2:index 8 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
 	] .

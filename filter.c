@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <chimaera.h>
 #include <osc.h>
@@ -37,6 +38,10 @@ struct _handle_t {
 	const float *group_sel;
 	const float *north_sel;
 	const float *south_sel;
+	const float *on_sel;
+	const float *off_sel;
+	const float *set_sel;
+	const float *idle_sel;
 	LV2_Atom_Sequence *event_out;
 	LV2_Atom_Forge forge;
 };
@@ -86,6 +91,18 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->south_sel = (const float *)data;
 			break;
 		case 4:
+			handle->on_sel = (const float *)data;
+			break;
+		case 5:
+			handle->off_sel = (const float *)data;
+			break;
+		case 6:
+			handle->set_sel = (const float *)data;
+			break;
+		case 7:
+			handle->idle_sel = (const float *)data;
+			break;
+		case 8:
 			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -120,10 +137,19 @@ run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	uint32_t gid = *handle->group_sel;
-	uint32_t north = *handle->north_sel ? 0x80 : 0;
-	uint32_t south = *handle->south_sel ? 0x100 : 0;
-	uint32_t pol = north | south;
+	uint8_t group_mask = floor(*handle->group_sel);
+	uint32_t north = *handle->north_sel > 0.f ? 0x80 : 0;
+	uint32_t south = *handle->south_sel > 0.f ? 0x100 : 0;
+	uint32_t pid = north | south;
+	chimaera_state_t state = CHIMAERA_STATE_NONE;
+	if(*handle->on_sel > 0.f)
+		state |= CHIMAERA_STATE_ON;
+	if(*handle->off_sel > 0.f)
+		state |= CHIMAERA_STATE_OFF;
+	if(*handle->set_sel > 0.f)
+		state |= CHIMAERA_STATE_SET;
+	if(*handle->idle_sel > 0.f)
+		state |= CHIMAERA_STATE_IDLE;
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
@@ -141,7 +167,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 			size_t len = ev->body.size;
 			const chimaera_event_t *cev = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
 
-			if( (cev->gid == gid) && (cev->pid & pol) )
+			if( ((1 << cev->gid) & group_mask) && (cev->pid & pid) && (cev->state & state) )
 				_chim_event(handle, frames, cev);
 		}
 	}
