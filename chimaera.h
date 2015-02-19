@@ -46,10 +46,11 @@ typedef enum _chimaera_state_t		chimaera_state_t;
 typedef struct _chimaera_event_t	chimaera_event_t;
 
 enum _chimaera_state_t {
-	CHIMAERA_STATE_ON,
-	CHIMAERA_STATE_SET,
-	CHIMAERA_STATE_OFF,
-	CHIMAERA_STATE_IDLE
+	CHIMAERA_STATE_NONE		= 0,
+	CHIMAERA_STATE_ON			= 1,
+	CHIMAERA_STATE_SET		= 2,
+	CHIMAERA_STATE_OFF		= 4,
+	CHIMAERA_STATE_IDLE		= 8
 };
 
 struct _chimaera_event_t {

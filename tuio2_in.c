@@ -56,19 +56,35 @@ struct _handle_t {
 	uint16_t width;
 	uint16_t height;
 	int ignore;
+	int n;
+	int reset;
 
 	const LV2_Atom_Sequence *osc_in;
+	const float *reset_in;
 	LV2_Atom_Sequence *event_out;
 	LV2_Atom_Forge forge;
 };
 
-static inline dict_t *
+static inline void
 _dict_clear(handle_t *handle, int pos)
 {
 	dict_t *dict = handle->dict[pos];
 
 	for(int i=0; i<DICT_SIZE; i++)
-		dict[i].sid = 0;
+		if(dict[i].sid)
+			dict[i].sid = 0;
+		else
+			break;
+}
+
+static inline dict_t *
+_dict_add(handle_t *handle, int pos)
+{
+	dict_t *dict = handle->dict[pos];
+
+	for(int i=0; i<DICT_SIZE; i++)
+		if(dict[i].sid == 0)
+			return &dict[i];
 
 	return NULL;
 }
@@ -81,6 +97,8 @@ _dict_ref(handle_t *handle, int pos, uint32_t ref)
 	for(int i=0; i<DICT_SIZE; i++)
 		if(dict[i].sid == ref)
 			return &dict[i];
+		else if(dict[i].sid == 0)
+			return NULL;
 
 	return NULL;
 }
@@ -122,6 +140,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->osc_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
+			handle->reset_in = (const float *)data;
+			break;
+		case 2:
 			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -156,7 +177,6 @@ _frm(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
-
 	uint32_t fid;
 	osc_time_t last;
 	uint32_t dim;
@@ -169,19 +189,19 @@ _frm(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 	{
 		handle->fid = fid;
 		handle->last = last;
+
 		ptr = osc_get_int32(ptr, (int32_t *)&dim);
 		//ptr = osc_get_string(ptr, &source);
 		handle->width = dim >> 16;
 		handle->height = dim & 0xffff;
-		handle->ignore = 0;
 
 		handle->pos ^= 1; // toggle pos
-		_dict_clear(handle, handle->pos);
+		_dict_clear(handle, handle->pos); // clear current dict
+
+		handle->ignore = 0;
 	}
 	else
-	{
 		handle->ignore = 1;
-	}
 
 	return 1;
 }
@@ -192,11 +212,11 @@ _tok(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
 	dict_t *dict;
-	
+
 	if(handle->ignore)
 		return 1;
 	
-	dict =_dict_ref(handle, handle->pos, 0);
+	dict =_dict_add(handle, handle->pos); // get new blob ref
 	if(!dict)
 		return 1;
 
@@ -223,6 +243,12 @@ _tok(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 		dict->m = NAN;
 		dict->R = NAN;
 		//TODO calculate !
+
+		dict->X = 0.f;
+		dict->Z = 0.f;
+		dict->A = 0.f;
+		dict->m = 0.f;
+		dict->R = 0.f;
 	}
 
 	return 1;
@@ -244,43 +270,31 @@ _alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 
 	n = strlen(fmt);
 
-	if(!n)
-	{
-		// is idling
-		cev.state = CHIMAERA_STATE_IDLE;
-		cev.sid = 0;
-		cev.gid = 0;
-		cev.pid = 0;
-		cev.x = 0.f;
-		cev.z = 0.f;
-		cev.X = 0.f;
-		cev.Z = 0.f;
-
-		_chim_event(handle, time, &cev);
-
-		return 1;
-	}
-
 	for(int i=0; i<n; i++)
 	{
 		ptr = osc_get_int32(ptr, (int32_t *)&sid);
 
+		// already registered in this step?
 		dict = _dict_ref(handle, handle->pos, sid);
 		if(!dict)
 		{
-			dict = _dict_ref(handle, handle->pos, 0);
+			// register in this step
+			dict = _dict_add(handle, handle->pos);
+			// clone from previous step
 			ref = _dict_ref(handle, !handle->pos, sid);
-			memcpy(dict, ref, sizeof(dict_t));
+			if(dict && ref)
+				memcpy(dict, ref, sizeof(dict_t));
 		}
 	}
 
-	// discover disappeared
+	// iterate over last step's blobs
 	ref = handle->dict[!handle->pos];
 	for(int i=0; i<DICT_SIZE; i++)
 	{
 		if(!ref[i].sid)
 			break; // end of dict
 
+		// is it registered in this step?
 		if(!_dict_ref(handle, handle->pos, ref[i].sid))
 		{
 			// is disappeared blob
@@ -297,7 +311,7 @@ _alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 		}
 	}
 
-	// discover newly appeared and updated blobs
+	// iterate over this step's blobs
 	dict = handle->dict[handle->pos];
 	for(int i=0; i<DICT_SIZE; i++)
 	{
@@ -312,19 +326,31 @@ _alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 		cev.X = dict[i].X;
 		cev.Z = dict[i].Z;
 
-		if(_dict_ref(handle, !handle->pos, dict[i].sid))
-		{
-			// is existing blob
-			cev.state = CHIMAERA_STATE_SET;
-		}
-		else
-		{
-			// is newly appeared blob
+		// was it registered in previous step?
+		if(!_dict_ref(handle, !handle->pos, dict[i].sid))
 			cev.state = CHIMAERA_STATE_ON;
-		}
+		else
+			cev.state = CHIMAERA_STATE_SET;
 
 		_chim_event(handle, time, &cev);
 	}
+
+	if(!n && !handle->n)
+	{
+		// is idling
+		cev.state = CHIMAERA_STATE_IDLE;
+		cev.sid = 0;
+		cev.gid = 0;
+		cev.pid = 0;
+		cev.x = 0.f;
+		cev.z = 0.f;
+		cev.X = 0.f;
+		cev.Z = 0.f;
+
+		_chim_event(handle, time, &cev);
+	}
+
+	handle->n = n;
 
 	return 1;
 }
@@ -344,6 +370,22 @@ static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
+
+	int reset = *handle->reset_in > 0.f ? 1 : 0;
+	if(reset && !handle->reset)
+	{
+		_dict_clear(handle, 0);
+		_dict_clear(handle, 1);
+		handle->pos = 0;
+
+		handle->fid = 0;
+		handle->last = 0;
+		handle->width = 0;
+		handle->height = 0;
+		handle->ignore = 0;
+		handle->n = 0;
+	}
+	handle->reset = reset;
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
