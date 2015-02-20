@@ -224,16 +224,16 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 		lv2_atom_forge_int(forge, ev->pid);
 
 		lv2_atom_forge_key(forge, cforge->uris.x);
-		lv2_atom_forge_int(forge, ev->x);
+		lv2_atom_forge_float(forge, ev->x);
 
 		lv2_atom_forge_key(forge, cforge->uris.z);
-		lv2_atom_forge_int(forge, ev->z);
+		lv2_atom_forge_float(forge, ev->z);
 
 		lv2_atom_forge_key(forge, cforge->uris.X);
-		lv2_atom_forge_int(forge, ev->X);
+		lv2_atom_forge_float(forge, ev->X);
 
 		lv2_atom_forge_key(forge, cforge->uris.Z);
-		lv2_atom_forge_int(forge, ev->Z);
+		lv2_atom_forge_float(forge, ev->Z);
 	}
    
 	lv2_atom_forge_pop(forge, &frame);
