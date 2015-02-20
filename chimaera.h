@@ -27,12 +27,28 @@
 #include "lv2/lv2plug.in/ns/ext/urid/urid.h"
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-	
+
 #define LV2_OSC__OscEvent					"http://opensoundcontrol.org#OscEvent"
 
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
 
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#Event"
+
+#if !defined(CHIMAERA_FAST_DISPATCH)
+#	define CHIMAERA_STATE_NONE_URI	CHIMAERA_URI"#StateNone"
+#	define CHIMAERA_STATE_ON_URI		CHIMAERA_URI"#StateOn"
+#	define CHIMAERA_STATE_SET_URI		CHIMAERA_URI"#StateSet"
+#	define CHIMAERA_STATE_OFF_URI		CHIMAERA_URI"#StateOff"
+#	define CHIMAERA_STATE_IDLE_URI	CHIMAERA_URI"#StateIdle"
+
+#	define CHIMAERA_PROP_SID_URI		CHIMAERA_URI"#PropSID"
+#	define CHIMAERA_PROP_GID_URI		CHIMAERA_URI"#PropGID"
+#	define CHIMAERA_PROP_PID_URI		CHIMAERA_URI"#PropPID"
+#	define CHIMAERA_PROP_XPOS_URI		CHIMAERA_URI"#PropXPos"
+#	define CHIMAERA_PROP_ZPOS_URI		CHIMAERA_URI"#PropZPos"
+#	define CHIMAERA_PROP_XVEL_URI		CHIMAERA_URI"#PropXVel"
+#	define CHIMAERA_PROP_ZVEL_URI		CHIMAERA_URI"#PropZVel"
+#endif
 
 #define CHIMAERA_DUMMY_IN_URI			CHIMAERA_URI"#dummy_in"
 #define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
@@ -44,6 +60,8 @@
 
 typedef enum _chimaera_state_t		chimaera_state_t;
 typedef struct _chimaera_event_t	chimaera_event_t;
+typedef struct _chimaera_forge_t	chimaera_forge_t;
+typedef struct _chimaera_dict_t chimaera_dict_t;
 
 enum _chimaera_state_t {
 	CHIMAERA_STATE_NONE		= 0,
@@ -63,6 +81,275 @@ struct _chimaera_event_t {
 	float X;
 	float Z;
 };
+
+struct _chimaera_forge_t {
+	LV2_Atom_Forge forge;
+
+	struct {
+		LV2_URID event;
+
+#if !defined(CHIMAERA_FAST_DISPATCH)
+		LV2_URID none;
+		LV2_URID on;
+		LV2_URID set;
+		LV2_URID off;
+		LV2_URID idle;
+
+		LV2_URID sid;
+		LV2_URID gid;
+		LV2_URID pid;
+		LV2_URID x;
+		LV2_URID z;
+		LV2_URID X;
+		LV2_URID Z;
+#endif
+	} uris;
+};
+
+struct _chimaera_dict_t {
+	uint32_t sid;
+	void *ref;
+};
+
+#if defined(CHIMAERA_FAST_DISPATCH)
+
+static inline void
+chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+
+	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
+
+	lv2_atom_forge_init(forge, map);
+}
+
+static inline void
+chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+
+	lv2_atom_forge_atom(forge, sizeof(chimaera_event_t), cforge->uris.event);
+ 	lv2_atom_forge_raw(forge, ev, sizeof(chimaera_event_t)); 
+	lv2_atom_forge_pad(forge, sizeof(chimaera_event_t));
+}
+
+static inline int
+chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
+{
+	if(atom->type == cforge->uris.event)
+		return 1;
+	
+	return 0;
+}
+
+static inline void
+chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_event_t *ev)
+{
+	const chimaera_event_t *ptr;
+
+	ptr = LV2_ATOM_BODY_CONST(atom);
+	ev->state = ptr->state;
+	ev->sid = ptr->sid;
+	ev->gid = ptr->gid;
+	ev->pid = ptr->pid;
+	ev->x = ptr->x;
+	ev->z = ptr->z;
+	ev->X = ptr->X;
+	ev->Z = ptr->Z;
+}
+
+#else // !defined(CHIMAERA_FAST_DISPATCH)
+
+static inline void
+chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+
+	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
+
+	cforge->uris.none = map->map(map->handle, CHIMAERA_STATE_NONE_URI);
+	cforge->uris.on = map->map(map->handle, CHIMAERA_STATE_ON_URI);
+	cforge->uris.set = map->map(map->handle, CHIMAERA_STATE_SET_URI);
+	cforge->uris.off = map->map(map->handle, CHIMAERA_STATE_OFF_URI);
+	cforge->uris.idle = map->map(map->handle, CHIMAERA_STATE_IDLE_URI);
+
+	cforge->uris.sid = map->map(map->handle, CHIMAERA_PROP_SID_URI);
+	cforge->uris.gid = map->map(map->handle, CHIMAERA_PROP_GID_URI);
+	cforge->uris.pid = map->map(map->handle, CHIMAERA_PROP_PID_URI);
+	cforge->uris.x = map->map(map->handle, CHIMAERA_PROP_XPOS_URI);
+	cforge->uris.z = map->map(map->handle, CHIMAERA_PROP_ZPOS_URI);
+	cforge->uris.X = map->map(map->handle, CHIMAERA_PROP_XVEL_URI);
+	cforge->uris.Z = map->map(map->handle, CHIMAERA_PROP_ZVEL_URI);
+
+	lv2_atom_forge_init(forge, map);
+}
+
+static inline void
+chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+	LV2_Atom_Forge_Frame frame;
+
+	LV2_URID id = 0;
+	switch(ev->state)
+	{
+		case CHIMAERA_STATE_NONE:
+			id = cforge->uris.none;
+			break;
+		case CHIMAERA_STATE_ON:
+			id = cforge->uris.on;
+			break;
+		case CHIMAERA_STATE_SET:
+			id = cforge->uris.set;
+			break;
+		case CHIMAERA_STATE_OFF:
+			id = cforge->uris.off;
+			break;
+		case CHIMAERA_STATE_IDLE:
+			id = cforge->uris.idle;
+			break;
+	}
+
+	lv2_atom_forge_object(forge, &frame, id, cforge->uris.event);
+
+	if( (ev->state != CHIMAERA_STATE_NONE) && (ev->state != CHIMAERA_STATE_IDLE) )
+	{
+		lv2_atom_forge_key(forge, cforge->uris.sid);
+		lv2_atom_forge_int(forge, ev->sid);
+
+		lv2_atom_forge_key(forge, cforge->uris.gid);
+		lv2_atom_forge_int(forge, ev->gid);
+
+		lv2_atom_forge_key(forge, cforge->uris.pid);
+		lv2_atom_forge_int(forge, ev->pid);
+
+		lv2_atom_forge_key(forge, cforge->uris.x);
+		lv2_atom_forge_int(forge, ev->x);
+
+		lv2_atom_forge_key(forge, cforge->uris.z);
+		lv2_atom_forge_int(forge, ev->z);
+
+		lv2_atom_forge_key(forge, cforge->uris.X);
+		lv2_atom_forge_int(forge, ev->X);
+
+		lv2_atom_forge_key(forge, cforge->uris.Z);
+		lv2_atom_forge_int(forge, ev->Z);
+	}
+   
+	lv2_atom_forge_pop(forge, &frame);
+}
+
+static inline int
+chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
+{
+	const LV2_Atom_Forge *forge = &cforge->forge;
+	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
+
+	if(lv2_atom_forge_is_object_type(forge, atom->type)
+			&& (obj->body.otype == cforge->uris.event) )
+		return 1;
+	
+	return 0;
+}
+
+static inline void
+chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_event_t *ev)
+{
+	const LV2_Atom_Forge *forge = &cforge->forge;
+	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
+	const LV2_Atom_Property_Body *prop;
+
+	if(obj->body.id == cforge->uris.none)
+		ev->state = CHIMAERA_STATE_NONE;
+	else if(obj->body.id == cforge->uris.on)
+		ev->state = CHIMAERA_STATE_ON;
+	else if(obj->body.id == cforge->uris.set)
+		ev->state = CHIMAERA_STATE_SET;
+	else if(obj->body.id == cforge->uris.off)
+		ev->state = CHIMAERA_STATE_OFF;
+	else if(obj->body.id == cforge->uris.idle)
+		ev->state = CHIMAERA_STATE_IDLE;
+
+	LV2_ATOM_OBJECT_FOREACH(obj, prop)
+	{
+		if(prop->key == cforge->uris.sid)
+			ev->sid = ((LV2_Atom_Int *)&prop->value)->body;
+		else if(prop->key == cforge->uris.gid)
+			ev->gid = ((LV2_Atom_Int *)&prop->value)->body;
+		else if(prop->key == cforge->uris.pid)
+			ev->pid = ((LV2_Atom_Int *)&prop->value)->body;
+		else if(prop->key == cforge->uris.x)
+			ev->x = ((LV2_Atom_Float *)&prop->value)->body;
+		else if(prop->key == cforge->uris.z)
+			ev->z = ((LV2_Atom_Float *)&prop->value)->body;
+		else if(prop->key == cforge->uris.X)
+			ev->X = ((LV2_Atom_Float *)&prop->value)->body;
+		else if(prop->key == cforge->uris.Z)
+			ev->Z = ((LV2_Atom_Float *)&prop->value)->body;
+	}
+}
+
+#endif
+
+#if !defined(CHIMAERA_DICT_SIZE)
+#	define CHIMAERA_DICT_SIZE 16
+#endif
+
+#define CHIMAERA_DICT_INIT(DICT, REF) \
+({ \
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++) \
+	{ \
+		(DICT)[i].sid = 0; \
+		(DICT)[i].ref = (REF) + i; \
+	} \
+})
+
+#define CHIMAERA_DICT_FOREACH(DICT, SID, REF) \
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++) \
+		if( (((SID) = (DICT)[i].sid) != 0) && ((REF) = (DICT)[i].ref) )
+
+static inline void
+chimaera_dict_clear(chimaera_dict_t *dict)
+{
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+		dict[i].sid = 0;
+}
+
+static inline void *
+chimaera_dict_add(chimaera_dict_t *dict, uint32_t sid)
+{
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+		if(dict[i].sid == 0)
+		{
+			dict[i].sid = sid;
+			return dict[i].ref;
+		}
+
+	return NULL;
+}
+
+static inline void *
+chimaera_dict_del(chimaera_dict_t *dict, uint32_t sid)
+{
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+		if(dict[i].sid == sid)
+		{
+			dict[i].sid = 0;
+			return dict[i].ref;
+		}
+
+	return NULL;
+}
+
+static inline void *
+chimaera_dict_ref(chimaera_dict_t *dict, uint32_t sid)
+{
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+		if(dict[i].sid == sid)
+			return dict[i].ref;
+
+	return NULL;
+}
 
 const LV2_Descriptor dummy_in;
 const LV2_Descriptor tuio2_in;

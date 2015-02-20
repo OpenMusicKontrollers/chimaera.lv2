@@ -28,9 +28,7 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	LV2_URID_Map *map;
-	struct {
-		LV2_URID chim_Event;
-	} uris;
+	chimaera_forge_t cforge;
 
 	osc_data_t buf [BUF_SIZE];
 
@@ -65,8 +63,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 		return NULL;
 	}
 
-	handle->uris.chim_Event = handle->map->map(handle->map->handle, CHIMAERA_EVENT_URI);
-	lv2_atom_forge_init(&handle->forge, handle->map);
+	chimaera_forge_init(&handle->cforge, handle->map);
 
 	return handle;
 }
@@ -120,16 +117,10 @@ activate(LV2_Handle instance)
 static inline void
 _chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
-	LV2_Atom_Forge *forge = &handle->forge;
-		
-	LV2_Atom chim_atom;
-	chim_atom.type = handle->uris.chim_Event;
-	chim_atom.size = sizeof(chimaera_event_t);
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 		
 	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_raw(forge, &chim_atom, sizeof(LV2_Atom));
-	lv2_atom_forge_raw(forge, cev, sizeof(chimaera_event_t));
-	lv2_atom_forge_pad(forge, sizeof(chimaera_event_t));
+	chimaera_event_forge(&handle->cforge, cev);
 }
 
 static void
@@ -153,7 +144,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
-	LV2_Atom_Forge *forge = &handle->forge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
@@ -161,14 +152,16 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
-		if(ev->body.type == handle->uris.chim_Event)
+		if(chimaera_event_check_type(&handle->cforge, &ev->body))
 		{
 			int64_t frames = ev->time.frames;
 			size_t len = ev->body.size;
-			const chimaera_event_t *cev = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
+			chimaera_event_t cev;
 
-			if( ((1 << cev->gid) & group_mask) && (cev->pid & pid) && (cev->state & state) )
-				_chim_event(handle, frames, cev);
+			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
+
+			if( ((1 << cev.gid) & group_mask) && (cev.pid & pid) && (cev.state & state) )
+				_chim_event(handle, frames, &cev);
 		}
 	}
 

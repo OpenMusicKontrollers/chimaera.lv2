@@ -24,9 +24,7 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	LV2_URID_Map *map;
-	struct {
-		LV2_URID chim_Event;
-	} uris;
+	chimaera_forge_t cforge;
 
 	const LV2_Atom_Sequence *event_in;
 	float *gate;
@@ -57,8 +55,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 		free(handle);
 		return NULL;
 	}
-	
-	handle->uris.chim_Event = handle->map->map(handle->map->handle, CHIMAERA_EVENT_URI);
+
+	chimaera_forge_init(&handle->cforge, handle->map);
 
 	return handle;
 }
@@ -117,25 +115,27 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
-		if(ev->body.type == handle->uris.chim_Event)
+		if(chimaera_event_check_type(&handle->cforge, &ev->body))
 		{
 			int64_t frames = ev->time.frames;
 			size_t len = ev->body.size;
-			const chimaera_event_t *cev = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
+			chimaera_event_t cev;
 
-			switch(cev->state)
+			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
+
+			switch(cev.state)
 			{
 				case CHIMAERA_STATE_ON:
 					*handle->gate = 1.f;
 					// fall-through
 				case CHIMAERA_STATE_SET:
-					*handle->sid = cev->sid;
-					*handle->north = cev->pid & 0x80 ? 1.f : 0.f;
-					*handle->south = cev->pid & 0x100 ? 1.f : 0.f;
-					*handle->x = cev->x;
-					*handle->z = cev->z;
-					*handle->X = cev->X;
-					*handle->Z = cev->Z;
+					*handle->sid = cev.sid;
+					*handle->north = cev.pid & 0x80 ? 1.f : 0.f;
+					*handle->south = cev.pid & 0x100 ? 1.f : 0.f;
+					*handle->x = cev.x;
+					*handle->z = cev.z;
+					*handle->X = cev.X;
+					*handle->Z = cev.Z;
 					break;
 
 				case CHIMAERA_STATE_OFF:

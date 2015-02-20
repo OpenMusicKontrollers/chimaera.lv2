@@ -22,13 +22,10 @@
 #include <chimaera.h>
 #include <osc.h>
 
-#define DICT_SIZE 64
-
-typedef struct _dict_t dict_t;
+typedef struct _ref_t ref_t;
 typedef struct _handle_t handle_t;
 
-struct _dict_t {
-	uint32_t sid;
+struct _ref_t {
 	uint32_t tuid;
 	uint32_t gid;
 	float x;
@@ -44,11 +41,12 @@ struct _dict_t {
 struct _handle_t {
 	LV2_URID_Map *map;
 	struct {
-		LV2_URID chim_Event;
 		LV2_URID osc_OscEvent;
 	} uris;
+	chimaera_forge_t cforge;
 
-	dict_t dict [2][DICT_SIZE];
+	chimaera_dict_t dict [2][CHIMAERA_DICT_SIZE];
+	ref_t ref [2][CHIMAERA_DICT_SIZE];
 	int pos;
 
 	uint32_t fid;
@@ -62,46 +60,7 @@ struct _handle_t {
 	const LV2_Atom_Sequence *osc_in;
 	const float *reset_in;
 	LV2_Atom_Sequence *event_out;
-	LV2_Atom_Forge forge;
 };
-
-static inline void
-_dict_clear(handle_t *handle, int pos)
-{
-	dict_t *dict = handle->dict[pos];
-
-	for(int i=0; i<DICT_SIZE; i++)
-		if(dict[i].sid)
-			dict[i].sid = 0;
-		else
-			break;
-}
-
-static inline dict_t *
-_dict_add(handle_t *handle, int pos)
-{
-	dict_t *dict = handle->dict[pos];
-
-	for(int i=0; i<DICT_SIZE; i++)
-		if(dict[i].sid == 0)
-			return &dict[i];
-
-	return NULL;
-}
-
-static inline dict_t *
-_dict_ref(handle_t *handle, int pos, uint32_t ref)
-{
-	dict_t *dict = handle->dict[pos];
-
-	for(int i=0; i<DICT_SIZE; i++)
-		if(dict[i].sid == ref)
-			return &dict[i];
-		else if(dict[i].sid == 0)
-			return NULL;
-
-	return NULL;
-}
 
 static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
@@ -123,8 +82,9 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 	}
 
 	handle->uris.osc_OscEvent = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
-	handle->uris.chim_Event = handle->map->map(handle->map->handle, CHIMAERA_EVENT_URI);
-	lv2_atom_forge_init(&handle->forge, handle->map);
+	chimaera_forge_init(&handle->cforge, handle->map);
+	CHIMAERA_DICT_INIT(handle->dict[0], handle->ref[0]);
+	CHIMAERA_DICT_INIT(handle->dict[1], handle->ref[1]);
 
 	return handle;
 }
@@ -160,16 +120,10 @@ activate(LV2_Handle instance)
 static inline void
 _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 {
-	LV2_Atom_Forge *forge = &handle->forge;
-		
-	LV2_Atom chim_atom;
-	chim_atom.type = handle->uris.chim_Event;
-	chim_atom.size = sizeof(chimaera_event_t);
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 		
 	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_raw(forge, &chim_atom, sizeof(LV2_Atom));
-	lv2_atom_forge_raw(forge, cev, sizeof(chimaera_event_t));
-	lv2_atom_forge_pad(forge, sizeof(chimaera_event_t));
+	chimaera_event_forge(&handle->cforge, cev);
 }
 
 static int
@@ -196,7 +150,7 @@ _frm(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 		handle->height = dim & 0xffff;
 
 		handle->pos ^= 1; // toggle pos
-		_dict_clear(handle, handle->pos); // clear current dict
+		chimaera_dict_clear(handle->dict[handle->pos]);
 
 		handle->ignore = 0;
 	}
@@ -211,44 +165,46 @@ _tok(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
-	dict_t *dict;
+	ref_t *ref;
 
 	if(handle->ignore)
 		return 1;
+
+	uint32_t sid;
+	ptr = osc_get_int32(ptr, (int32_t *)&sid);
 	
-	dict =_dict_add(handle, handle->pos); // get new blob ref
-	if(!dict)
+	ref = chimaera_dict_add(handle->dict[handle->pos], sid); // get new blob ref
+	if(!ref)
 		return 1;
 
-	ptr = osc_get_int32(ptr, (int32_t *)&dict->sid);
-	ptr = osc_get_int32(ptr, (int32_t *)&dict->tuid);
-	ptr = osc_get_int32(ptr, (int32_t *)&dict->gid);
-	ptr = osc_get_float(ptr, &dict->x);
-	ptr = osc_get_float(ptr, &dict->z);
-	ptr = osc_get_float(ptr, &dict->a);
+	ptr = osc_get_int32(ptr, (int32_t *)&ref->tuid);
+	ptr = osc_get_int32(ptr, (int32_t *)&ref->gid);
+	ptr = osc_get_float(ptr, &ref->x);
+	ptr = osc_get_float(ptr, &ref->z);
+	ptr = osc_get_float(ptr, &ref->a);
 
 	if(strlen(fmt) > 6)
 	{
-		ptr = osc_get_float(ptr, &dict->X);
-		ptr = osc_get_float(ptr, &dict->Z);
-		ptr = osc_get_float(ptr, &dict->A);
-		ptr = osc_get_float(ptr, &dict->m);
-		ptr = osc_get_float(ptr, &dict->R);
+		ptr = osc_get_float(ptr, &ref->X);
+		ptr = osc_get_float(ptr, &ref->Z);
+		ptr = osc_get_float(ptr, &ref->A);
+		ptr = osc_get_float(ptr, &ref->m);
+		ptr = osc_get_float(ptr, &ref->R);
 	}
 	else
 	{
-		dict->X = NAN;
-		dict->Z = NAN;
-		dict->A = NAN;
-		dict->m = NAN;
-		dict->R = NAN;
+		ref->X = NAN;
+		ref->Z = NAN;
+		ref->A = NAN;
+		ref->m = NAN;
+		ref->R = NAN;
 		//TODO calculate !
 
-		dict->X = 0.f;
-		dict->Z = 0.f;
-		dict->A = 0.f;
-		dict->m = 0.f;
-		dict->R = 0.f;
+		ref->X = 0.f;
+		ref->Z = 0.f;
+		ref->A = 0.f;
+		ref->m = 0.f;
+		ref->R = 0.f;
 	}
 
 	return 1;
@@ -262,8 +218,8 @@ _alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 	chimaera_event_t cev;
 	int n;
 	uint32_t sid;
-	dict_t *dict;
-	dict_t *ref;
+	ref_t *dst;
+	ref_t *src;
 
 	if(handle->ignore)
 		return 1;
@@ -275,59 +231,51 @@ _alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 		ptr = osc_get_int32(ptr, (int32_t *)&sid);
 
 		// already registered in this step?
-		dict = _dict_ref(handle, handle->pos, sid);
-		if(!dict)
+		dst = chimaera_dict_ref(handle->dict[handle->pos], sid);
+		if(!dst)
 		{
 			// register in this step
-			dict = _dict_add(handle, handle->pos);
+			dst = chimaera_dict_add(handle->dict[handle->pos], sid);
 			// clone from previous step
-			ref = _dict_ref(handle, !handle->pos, sid);
-			if(dict && ref)
-				memcpy(dict, ref, sizeof(dict_t));
+			src = chimaera_dict_ref(handle->dict[!handle->pos], sid);
+			if(dst && src)
+				memcpy(dst, src, sizeof(ref_t));
 		}
 	}
 
 	// iterate over last step's blobs
-	ref = handle->dict[!handle->pos];
-	for(int i=0; i<DICT_SIZE; i++)
+	CHIMAERA_DICT_FOREACH(handle->dict[!handle->pos], sid, src)
 	{
-		if(!ref[i].sid)
-			break; // end of dict
-
 		// is it registered in this step?
-		if(!_dict_ref(handle, handle->pos, ref[i].sid))
+		if(!chimaera_dict_ref(handle->dict[handle->pos], sid))
 		{
 			// is disappeared blob
 			cev.state = CHIMAERA_STATE_OFF;
-			cev.sid = ref[i].sid;
-			cev.gid = ref[i].gid;
-			cev.pid = ref[i].tuid & 0xffff;
-			cev.x = ref[i].x;
-			cev.z = ref[i].z;
-			cev.X = ref[i].X;
-			cev.Z = ref[i].Z;
+			cev.sid = sid;
+			cev.gid = src->gid;
+			cev.pid = src->tuid & 0xffff;
+			cev.x = src->x;
+			cev.z = src->z;
+			cev.X = src->X;
+			cev.Z = src->Z;
 
 			_chim_event(handle, time, &cev);
 		}
 	}
 
 	// iterate over this step's blobs
-	dict = handle->dict[handle->pos];
-	for(int i=0; i<DICT_SIZE; i++)
+	CHIMAERA_DICT_FOREACH(handle->dict[handle->pos], sid, dst)
 	{
-		if(!dict[i].sid)
-			break; // end of dict
-
-		cev.sid = dict[i].sid;
-		cev.gid = dict[i].gid;
-		cev.pid = dict[i].tuid & 0xffff;
-		cev.x = dict[i].x;
-		cev.z = dict[i].z;
-		cev.X = dict[i].X;
-		cev.Z = dict[i].Z;
+		cev.sid = sid;
+		cev.gid = dst->gid;
+		cev.pid = dst->tuid & 0xffff;
+		cev.x = dst->x;
+		cev.z = dst->z;
+		cev.X = dst->X;
+		cev.Z = dst->Z;
 
 		// was it registered in previous step?
-		if(!_dict_ref(handle, !handle->pos, dict[i].sid))
+		if(!chimaera_dict_ref(handle->dict[!handle->pos], sid))
 			cev.state = CHIMAERA_STATE_ON;
 		else
 			cev.state = CHIMAERA_STATE_SET;
@@ -374,8 +322,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	int reset = *handle->reset_in > 0.f ? 1 : 0;
 	if(reset && !handle->reset)
 	{
-		_dict_clear(handle, 0);
-		_dict_clear(handle, 1);
+		chimaera_dict_clear(handle->dict[0]);
+		chimaera_dict_clear(handle->dict[1]);
 		handle->pos = 0;
 
 		handle->fid = 0;
@@ -389,7 +337,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
-	LV2_Atom_Forge *forge = &handle->forge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);

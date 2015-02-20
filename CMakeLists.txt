@@ -14,6 +14,8 @@ pkg_search_module(LV2 REQUIRED lv2>=1.10)
 include_directories(${LV2_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${LV2_LDFLAGS})
 
+option(CHIMAERA_FAST_DISPATCH "Use custom dispatch structure instead of LV2 in-builts" OFF)
+
 add_library(chimaera MODULE
 	chimaera.c
 	libosc/osc.c
@@ -23,6 +25,9 @@ add_library(chimaera MODULE
 	control_out.c
 	midi_out.c
 	osc_out.c)
+if(CHIMAERA_FAST_DISPATCH)
+	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_FAST_DISPATCH)
+endif()
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})
