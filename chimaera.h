@@ -54,6 +54,7 @@
 #define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
 
 #define CHIMAERA_FILTER_URI				CHIMAERA_URI"#filter"
+#define CHIMAERA_MAPPER_URI				CHIMAERA_URI"#mapper"
 #define CHIMAERA_CONTROL_OUT_URI	CHIMAERA_URI"#control_out"
 #define CHIMAERA_MIDI_OUT_URI			CHIMAERA_URI"#midi_out"
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
@@ -354,6 +355,7 @@ chimaera_dict_ref(chimaera_dict_t *dict, uint32_t sid)
 const LV2_Descriptor dummy_in;
 const LV2_Descriptor tuio2_in;
 const LV2_Descriptor filter;
+const LV2_Descriptor mapper;
 const LV2_Descriptor control_out;
 const LV2_Descriptor midi_out;
 const LV2_Descriptor osc_out;

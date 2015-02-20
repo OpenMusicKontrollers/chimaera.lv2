@@ -22,6 +22,7 @@ add_library(chimaera MODULE
 	dummy_in.c
 	tuio2_in.c
 	filter.c
+	mapper.c
 	control_out.c
 	midi_out.c
 	osc_out.c)

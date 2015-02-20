@@ -16,6 +16,8 @@
 @prefix owl:	<http://www.w3.org/2002/07/owl#> .
 @prefix foaf:	<http://xmlns.com/foaf/0.1/> .
 @prefix doap:	<http://usefulinc.com/ns/doap#> .
+@prefix rdf:	<http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix lv2:	<http://lv2plug.in/ns/lv2core#> .
 @prefix ui:		<http://lv2plug.in/ns/extensions/ui#> .
 @prefix atom:	<http://lv2plug.in/ns/ext/atom#> .
@@ -213,6 +215,57 @@ chim:filter
 		atom:bufferType atom:Sequence ;
 		atom:supports chim:Event ;
 		lv2:index 8 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+	] .
+
+# Mapper Plugin
+chim:mapper
+	a lv2:Plugin,
+		lv2:ConverterPlugin;
+	doap:name "Chimaera Mapper" ;
+	doap:license lic:Artistic-2.0 ;
+	lv2:project proj:chimaera ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+
+	# input event port
+	lv2:port [
+	  a lv2:InputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		lv2:index 0 ;
+		lv2:symbol "event_int" ;
+		lv2:name "Event Input" ;
+	] ;
+
+	# input control ports
+	lv2:port [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 1 ;
+		lv2:symbol "mode" ;
+		lv2:name "Mode" ;
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 5 ;
+		lv2:portProperty lv2:integer ;
+		lv2:portProperty lv2:enumeration ;
+		lv2:scalePoint [ rdfs:label "Stepwise" ;		rdf:value 0 ] ;
+		lv2:scalePoint [ rdfs:label "Linear" ;			rdf:value 1 ] ;
+		lv2:scalePoint [ rdfs:label "2nd-Order" ;		rdf:value 2 ] ;
+		lv2:scalePoint [ rdfs:label "3rd-Order" ;		rdf:value 3 ] ;
+		lv2:scalePoint [ rdfs:label "4th-Order" ;		rdf:value 4 ] ;
+		lv2:scalePoint [ rdfs:label "5th-Order" ;		rdf:value 5 ] ;
+	] ;
+
+	# output event port
+	lv2:port [
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
 	] .

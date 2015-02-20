@@ -22,20 +22,27 @@
 #include <chimaera.h>
 #include <osc.h>
 
+/*
+		lv2:scalePoint [ rdfs:label "Stepwise" ;		rdf:value 0 ] ;
+		lv2:scalePoint [ rdfs:label "Linear" ;			rdf:value 1 ] ;
+		lv2:scalePoint [ rdfs:label "2nd Order" ;		rdf:value 2 ] ;
+		lv2:scalePoint [ rdfs:label "3rd Order" ;		rdf:value 3 ] ;
+		lv2:scalePoint [ rdfs:label "4th Order" ;		rdf:value 4 ] ;
+		lv2:scalePoint [ rdfs:label "5th Order" ;		rdf:value 5 ] ;
+*/
+
 typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	LV2_URID_Map *map;
 	chimaera_forge_t cforge;
 
+	int order;
+	float ex;
+	float sign;
+
 	const LV2_Atom_Sequence *event_in;
-	const float *group_sel;
-	const float *north_sel;
-	const float *south_sel;
-	const float *on_sel;
-	const float *off_sel;
-	const float *set_sel;
-	const float *idle_sel;
+	const float *mode;
 	LV2_Atom_Sequence *event_out;
 };
 
@@ -74,27 +81,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->group_sel = (const float *)data;
+			handle->mode = (const float *)data;
 			break;
 		case 2:
-			handle->north_sel = (const float *)data;
-			break;
-		case 3:
-			handle->south_sel = (const float *)data;
-			break;
-		case 4:
-			handle->on_sel = (const float *)data;
-			break;
-		case 5:
-			handle->off_sel = (const float *)data;
-			break;
-		case 6:
-			handle->set_sel = (const float *)data;
-			break;
-		case 7:
-			handle->idle_sel = (const float *)data;
-			break;
-		case 8:
 			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -113,9 +102,51 @@ static inline void
 _chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
-		
-	lv2_atom_forge_frame_time(forge, frames);
-	chimaera_event_forge(&handle->cforge, cev);
+
+	chimaera_event_t mev;
+
+	float n = 160.f / 3.f;
+
+	if( (cev->state == CHIMAERA_STATE_ON) || (cev->state == CHIMAERA_STATE_SET) )
+	{
+		if(handle->order == 0)
+		{
+			float val = cev->x * n;
+			float ro = floor(val + 0.5);
+			mev.x = ro / n;
+		}
+		else if(handle->order == 1)
+		{
+			mev.x = cev->x;
+		}
+		else // handle->order == 2, 3, 4, 5
+		{
+			float val = cev->x * n;
+			float ro = floor(val + 0.5);
+			float rel = val - ro;
+			if(rel < 0.f)
+				rel = pow(rel * handle->ex, handle->order) * handle->sign;
+			else
+				rel = pow(rel * handle->ex, handle->order);
+			mev.x = (ro + rel) / n;
+		}
+
+		mev.state = cev->state;
+		mev.sid = cev->sid;
+		mev.gid = cev->gid;
+		mev.pid = cev->pid;
+		mev.z = cev->z;
+		mev.X = cev->X;
+		mev.Z = cev->Z;
+
+		lv2_atom_forge_frame_time(forge, frames);
+		chimaera_event_forge(&handle->cforge, &mev);
+	}
+	else
+	{
+		lv2_atom_forge_frame_time(forge, frames);
+		chimaera_event_forge(&handle->cforge, cev);
+	}
 }
 
 static void
@@ -123,19 +154,17 @@ run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	uint8_t group_mask = floor(*handle->group_sel);
-	uint32_t north = *handle->north_sel > 0.f ? 0x80 : 0;
-	uint32_t south = *handle->south_sel > 0.f ? 0x100 : 0;
-	uint32_t pid = north | south;
-	chimaera_state_t state = CHIMAERA_STATE_NONE;
-	if(*handle->on_sel > 0.f)
-		state |= CHIMAERA_STATE_ON;
-	if(*handle->off_sel > 0.f)
-		state |= CHIMAERA_STATE_OFF;
-	if(*handle->set_sel > 0.f)
-		state |= CHIMAERA_STATE_SET;
-	if(*handle->idle_sel > 0.f)
-		state |= CHIMAERA_STATE_IDLE;
+	int order = floor(*handle->mode);
+
+	if(handle->order != order)
+	{
+		if(order > 1)
+		{
+			handle->ex = pow(2.f, ((float)order - 1.f) / (float)order);
+			handle->sign = order % 2 == 0 ? -1.f : 1.f;
+		}
+		handle->order = order;
+	}
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
@@ -154,9 +183,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 			chimaera_event_t cev;
 
 			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
-
-			if( ((1 << cev.gid) & group_mask) && (cev.pid & pid) && (cev.state & state) )
-				_chim_event(handle, frames, &cev);
+			_chim_event(handle, frames, &cev);
 		}
 	}
 
@@ -184,8 +211,8 @@ extension_data(const char* uri)
 	return NULL;
 }
 
-const LV2_Descriptor filter = {
-	.URI						= CHIMAERA_FILTER_URI,
+const LV2_Descriptor mapper = {
+	.URI						= CHIMAERA_MAPPER_URI,
 	.instantiate		= instantiate,
 	.connect_port		= connect_port,
 	.activate				= activate,

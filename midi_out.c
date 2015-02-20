@@ -21,8 +21,6 @@
 
 #include <chimaera.h>
 
-#define DICT_SIZE 64
-
 typedef struct _ref_t ref_t;
 typedef struct _handle_t handle_t;
 

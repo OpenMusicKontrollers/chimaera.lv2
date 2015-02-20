@@ -34,6 +34,8 @@ lv2_descriptor(uint32_t index)
 			return &midi_out;
 		case 5:
 			return &osc_out;
+		case 6:
+			return &mapper;
 		default:
 			return NULL;
 	}
