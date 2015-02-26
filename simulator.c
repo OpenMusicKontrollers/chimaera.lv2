@@ -25,14 +25,13 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	LV2_URID_Map *map;
+	struct {
+		LV2_URID event_transfer;
+	} uris;
 	chimaera_forge_t cforge;
 
-	int order;
-	float ex;
-	float sign;
-
 	const LV2_Atom_Sequence *event_in;
-	const float *mode;
+	const float *sensors;
 	LV2_Atom_Sequence *event_out;
 };
 
@@ -55,6 +54,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 		return NULL;
 	}
 
+	handle->uris.event_transfer = handle->map->map(handle->map->handle,
+		LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&handle->cforge, handle->map);
 
 	return handle;
@@ -71,7 +72,7 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->mode = (const float *)data;
+			handle->sensors = (const float *)data;
 			break;
 		case 2:
 			handle->event_out = (LV2_Atom_Sequence *)data;
@@ -88,75 +89,12 @@ activate(LV2_Handle instance)
 	//nothing
 }
 
-static inline void
-_chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
-{
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-
-	chimaera_event_t mev;
-
-	float n = 160.f / 3.f;
-
-	if( (cev->state == CHIMAERA_STATE_ON) || (cev->state == CHIMAERA_STATE_SET) )
-	{
-		if(handle->order == 0)
-		{
-			float val = cev->x * n;
-			float ro = floor(val + 0.5);
-			mev.x = ro / n;
-		}
-		else if(handle->order == 1)
-		{
-			mev.x = cev->x;
-		}
-		else // handle->order == 2, 3, 4, 5
-		{
-			float val = cev->x * n;
-			float ro = floor(val + 0.5);
-			float rel = val - ro;
-			if(rel < 0.f)
-				rel = pow(rel * handle->ex, handle->order) * handle->sign;
-			else
-				rel = pow(rel * handle->ex, handle->order);
-			mev.x = (ro + rel) / n;
-		}
-
-		mev.state = cev->state;
-		mev.sid = cev->sid;
-		mev.gid = cev->gid;
-		mev.pid = cev->pid;
-		mev.z = cev->z;
-		mev.X = cev->X;
-		mev.Z = cev->Z;
-
-		lv2_atom_forge_frame_time(forge, frames);
-		chimaera_event_forge(&handle->cforge, &mev);
-	}
-	else
-	{
-		lv2_atom_forge_frame_time(forge, frames);
-		chimaera_event_forge(&handle->cforge, cev);
-	}
-}
-
 static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	int order = floor(*handle->mode);
-
-	if(handle->order != order)
-	{
-		if(order > 1)
-		{
-			handle->ex = pow(2.f, ((float)order - 1.f) / (float)order);
-			handle->sign = order % 2 == 0 ? -1.f : 1.f;
-		}
-		handle->order = order;
-	}
-
-	// prepare osc atom forge
+	// prepare chimaera atom forge
 	const uint32_t capacity = handle->event_out->atom.size;
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
@@ -170,10 +108,11 @@ run(LV2_Handle instance, uint32_t nsamples)
 		{
 			int64_t frames = ev->time.frames;
 			size_t len = ev->body.size;
-			chimaera_event_t cev;
 
-			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
-			_chim_event(handle, frames, &cev);
+			// clone event
+			lv2_atom_forge_frame_time(forge, frames);
+			lv2_atom_forge_raw(forge, &ev->body, len + sizeof(LV2_Atom));
+			lv2_atom_forge_pad(forge, len);
 		}
 	}
 
@@ -201,8 +140,8 @@ extension_data(const char* uri)
 	return NULL;
 }
 
-const LV2_Descriptor mapper = {
-	.URI						= CHIMAERA_MAPPER_URI,
+const LV2_Descriptor simulator = {
+	.URI						= CHIMAERA_SIMULATOR_URI,
 	.instantiate		= instantiate,
 	.connect_port		= connect_port,
 	.activate				= activate,

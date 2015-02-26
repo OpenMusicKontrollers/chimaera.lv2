@@ -20,18 +20,22 @@
 
 #include <stdint.h>
 
-#include "lv2/lv2plug.in/ns/ext/atom/atom.h"
-#include "lv2/lv2plug.in/ns/ext/atom/util.h"
-#include "lv2/lv2plug.in/ns/ext/atom/forge.h"
-#include "lv2/lv2plug.in/ns/ext/midi/midi.h"
-#include "lv2/lv2plug.in/ns/ext/urid/urid.h"
-#include "lv2/lv2plug.in/ns/ext/state/state.h"
-#include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include <lv2/lv2plug.in/ns/ext/atom/atom.h>
+#include <lv2/lv2plug.in/ns/ext/atom/util.h>
+#include <lv2/lv2plug.in/ns/ext/atom/forge.h>
+#include <lv2/lv2plug.in/ns/ext/urid/urid.h>
+#include <lv2/lv2plug.in/ns/ext/midi/midi.h>
+#include <lv2/lv2plug.in/ns/ext/state/state.h>
+#include <lv2/lv2plug.in/ns/extensions/ui/ui.h>
 
 #define LV2_OSC__OscEvent					"http://opensoundcontrol.org#OscEvent"
 
+// bundle uris
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
+#define CHIMAERA_UI_URI						"http://open-music-kontrollers.ch/lv2/chimaera_ui"
 
+// event uris
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#Event"
 
 #if !defined(CHIMAERA_FAST_DISPATCH)
@@ -50,6 +54,7 @@
 #	define CHIMAERA_PROP_ZVEL_URI		CHIMAERA_URI"#PropZVel"
 #endif
 
+// plugin uris
 #define CHIMAERA_DUMMY_IN_URI			CHIMAERA_URI"#dummy_in"
 #define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
 
@@ -58,7 +63,23 @@
 #define CHIMAERA_CONTROL_OUT_URI	CHIMAERA_URI"#control_out"
 #define CHIMAERA_MIDI_OUT_URI			CHIMAERA_URI"#midi_out"
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
+#define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 
+const LV2_Descriptor dummy_in;
+const LV2_Descriptor tuio2_in;
+const LV2_Descriptor filter;
+const LV2_Descriptor mapper;
+const LV2_Descriptor control_out;
+const LV2_Descriptor midi_out;
+const LV2_Descriptor osc_out;
+const LV2_Descriptor simulator;
+
+// ui plugins uris
+#define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
+
+const LV2UI_Descriptor simulator_ui;
+
+// bundle enums and structs
 typedef enum _chimaera_state_t		chimaera_state_t;
 typedef struct _chimaera_event_t	chimaera_event_t;
 typedef struct _chimaera_forge_t	chimaera_forge_t;
@@ -112,6 +133,7 @@ struct _chimaera_dict_t {
 	void *ref;
 };
 
+// bundle functions
 #if defined(CHIMAERA_FAST_DISPATCH)
 
 static inline void
@@ -351,13 +373,5 @@ chimaera_dict_ref(chimaera_dict_t *dict, uint32_t sid)
 
 	return NULL;
 }
-
-const LV2_Descriptor dummy_in;
-const LV2_Descriptor tuio2_in;
-const LV2_Descriptor filter;
-const LV2_Descriptor mapper;
-const LV2_Descriptor control_out;
-const LV2_Descriptor midi_out;
-const LV2_Descriptor osc_out;
 
 #endif // _CHIMAERA_LV2_H

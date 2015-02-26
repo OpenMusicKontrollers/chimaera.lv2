@@ -17,27 +17,13 @@
 
 #include <chimaera.h>
 
-LV2_SYMBOL_EXPORT const LV2_Descriptor*
-lv2_descriptor(uint32_t index)
+LV2_SYMBOL_EXPORT const LV2UI_Descriptor*
+lv2ui_descriptor(uint32_t index)
 {
 	switch(index)
 	{
 		case 0:
-			return &dummy_in;
-		case 1:
-			return &tuio2_in;
-		case 2:
-			return &filter;
-		case 3:
-			return &control_out;
-		case 4:
-			return &midi_out;
-		case 5:
-			return &osc_out;
-		case 6:
-			return &mapper;
-		case 7:
-			return &simulator;
+			return &simulator_ui;
 		default:
 			return NULL;
 	}

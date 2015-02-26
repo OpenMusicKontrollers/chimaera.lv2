@@ -46,13 +46,13 @@ proj:chimaera
 chim:dummy_in
 	a lv2:Plugin,
 		lv2:ConverterPlugin;
-	doap:name "Dummy to Chimaera" ;
+	doap:name "Chimaera Dummy In" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input osc port
 	lv2:port [
+	# input osc port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -60,10 +60,8 @@ chim:dummy_in
 		lv2:index 0 ;
 		lv2:symbol "osc_in" ;
 		lv2:name "OSC Input" ;
-	] ;
-
+	] , [
 	# output chimaera port
-	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -77,13 +75,13 @@ chim:dummy_in
 chim:tuio2_in
 	a lv2:Plugin,
 		lv2:ConverterPlugin;
-	doap:name "TUIO2 to Chimaera" ;
+	doap:name "Chimaera TUIO2 In" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input osc port
 	lv2:port [
+	# input osc port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -91,10 +89,8 @@ chim:tuio2_in
 		lv2:index 0 ;
 		lv2:symbol "osc_in" ;
 		lv2:name "OSC Input" ;
-	] ;
-
+	] , [
 	# input control ports
-	lv2:port [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -102,10 +98,8 @@ chim:tuio2_in
 		lv2:name "Reset" ;
 		lv2:default 0.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
+	] , [
 	# output chimaera port
-	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -124,8 +118,8 @@ chim:filter
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input event port
 	lv2:port [
+	# input event port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -133,10 +127,8 @@ chim:filter
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
-	] ;
-
+	] , [
 	# input control ports
-	lv2:port [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -146,9 +138,7 @@ chim:filter
 		lv2:minimum 0 ;
 		lv2:maximum 255 ;
 		lv2:portProperty lv2:integer ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
@@ -156,9 +146,7 @@ chim:filter
 		lv2:name "North Polarity Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 3 ;
@@ -166,9 +154,7 @@ chim:filter
 		lv2:name "South Polarity Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 4 ;
@@ -176,9 +162,7 @@ chim:filter
 		lv2:name "On Event Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 5 ;
@@ -186,9 +170,7 @@ chim:filter
 		lv2:name "Off Event Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 6 ;
@@ -196,9 +178,7 @@ chim:filter
 		lv2:name "Set Event Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 7 ;
@@ -206,10 +186,8 @@ chim:filter
 		lv2:name "Idle Event Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
+	] , [
 	# output event port
-	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -228,8 +206,8 @@ chim:mapper
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input event port
 	lv2:port [
+	# input event port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -237,10 +215,8 @@ chim:mapper
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
-	] ;
-
+	] , [
 	# input control ports
-	lv2:port [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -257,10 +233,69 @@ chim:mapper
 		lv2:scalePoint [ rdfs:label "3rd-Order" ;		rdf:value 3 ] ;
 		lv2:scalePoint [ rdfs:label "4th-Order" ;		rdf:value 4 ] ;
 		lv2:scalePoint [ rdfs:label "5th-Order" ;		rdf:value 5 ] ;
-	] ;
-
+	] , [
 	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		lv2:index 2 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+	] .
+
+# simulator UI
+chim:simulator_ui
+	a ui:X11UI ;
+	#ui:portNotification [
+	#	ui:plugin chim:simulator ;
+	#	lv2:symbol "event_in" ;
+	#	ui:protocol atom:eventTransfer ;
+	#] ;
+	lv2:requiredFeature ui:idleInterface ;
+  lv2:optionalFeature ui:noUserResize ;
+  lv2:extensionData ui:idleInterface, ui:showInterface .
+
+# Simulator Plugin
+chim:simulator
+	a lv2:Plugin,
+		lv2:ConverterPlugin;
+	doap:name "Chimaera Simulator" ;
+	doap:license lic:Artistic-2.0 ;
+	lv2:project proj:chimaera ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+
 	lv2:port [
+	# input event port
+	  a lv2:InputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		lv2:index 0 ;
+		lv2:symbol "event_in" ;
+		lv2:name "Event Input" ;
+	] , [
+	# input control port
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 1 ;
+		lv2:symbol "sensors" ;
+		lv2:name "Sensors" ;
+		lv2:default 48 ;
+		lv2:minimum 48 ;
+		lv2:maximum 160 ;
+		lv2:portProperty lv2:integer ;
+		lv2:portProperty lv2:enumeration ;
+		lv2:scalePoint [ rdfs:label "S48" ; rdf:value 48 ] ;
+		lv2:scalePoint [ rdfs:label "S64" ; rdf:value 64 ] ;
+		lv2:scalePoint [ rdfs:label "S80" ; rdf:value 80 ] ;
+		lv2:scalePoint [ rdfs:label "S96" ; rdf:value 96 ] ;
+		lv2:scalePoint [ rdfs:label "S112" ; rdf:value 112 ] ;
+		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
+		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
+		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
+	] , [
+	# output event port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -279,8 +314,8 @@ chim:control_out
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input event port
 	lv2:port [
+	# input event port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -288,10 +323,8 @@ chim:control_out
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
-	] ;
-
+	] , [
 	# output control ports
-	lv2:port [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -299,9 +332,7 @@ chim:control_out
 		lv2:name "Gate" ;
 		lv2:default 0.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
@@ -311,9 +342,7 @@ chim:control_out
 		lv2:minimum 0.0;
 		lv2:maximum 4.2950e+09 ;
 		lv2:portProperty lv2:integer ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 3 ;
@@ -321,9 +350,7 @@ chim:control_out
 		lv2:name "North Polarity" ;
 		lv2:default 0.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 4 ;
@@ -331,9 +358,7 @@ chim:control_out
 		lv2:name "South Polarity" ;
 		lv2:default 0.0 ;
 		lv2:portProperty lv2:toggled ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 5 ;
@@ -342,9 +367,7 @@ chim:control_out
 		lv2:default 0.0 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 1.0 ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 6 ;
@@ -353,9 +376,7 @@ chim:control_out
 		lv2:default 0.0 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 1.0 ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 7 ;
@@ -364,9 +385,7 @@ chim:control_out
 		lv2:default 0.0 ;
 		lv2:minimum -10.0 ;
 		lv2:maximum 10.0 ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
 		lv2:index 8 ;
@@ -381,13 +400,13 @@ chim:control_out
 chim:midi_out
 	a lv2:Plugin,
 		lv2:ConverterPlugin;
-	doap:name "Chimaera to Midi" ;
+	doap:name "Chimaera Midi Out" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
-	# input event port
 	lv2:port [
+	# input event port
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -395,9 +414,7 @@ chim:midi_out
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -407,9 +424,7 @@ chim:midi_out
 		lv2:minimum 16.0 ;
 		lv2:maximum 160.0 ;
 		lv2:portProperty lv2:integer ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
@@ -419,9 +434,7 @@ chim:midi_out
 		lv2:minimum 0.0 ;
 		lv2:maximum 8.0 ;
 		lv2:portProperty lv2:integer ;
-	] ;
-
-	lv2:port [
+	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 3 ;
@@ -431,10 +444,8 @@ chim:midi_out
 		lv2:minimum 0.0 ;
 		lv2:maximum 127.0 ;
 		lv2:portProperty lv2:integer ;
-	] ;
-
+	] , [
 	# output midi port
-	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
@@ -448,7 +459,7 @@ chim:midi_out
 chim:osc_out
 	a lv2:Plugin,
 		lv2:ConverterPlugin;
-	doap:name "Chimaera to OSC" ;
+	doap:name "Chimaera SuperCollider Out" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
@@ -462,10 +473,8 @@ chim:osc_out
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
-	] ;
-
+	] , [
 	# output osc port
-	lv2:port [
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
