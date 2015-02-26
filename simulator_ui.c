@@ -213,6 +213,22 @@ _mouse_move(void *data, Evas *e, Evas_Object *obj, void *event_info)
 	}
 }
 
+static void
+_mouse_in(Ecore_Evas *ee)
+{
+	UI *ui = ecore_evas_data_get(ui->ee, "ui");
+		
+	edje_object_signal_emit(ui->theme, "magnet,show", CHIMAERA_SIMULATOR_UI_URI);
+}
+
+static void
+_mouse_out(Ecore_Evas *ee)
+{
+	UI *ui = ecore_evas_data_get(ui->ee, "ui");
+	
+	edje_object_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
+}
+
 static LV2UI_Handle
 instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const char *bundle_path, LV2UI_Write_Function write_function, LV2UI_Controller controller, LV2UI_Widget *widget, const LV2_Feature *const *features)
 {
@@ -264,6 +280,9 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0, ui->w, ui->h);
 	if(!ui->ee)
 		printf("could not start evas\n");
+	ecore_evas_data_set(ui->ee, "ui", ui);
+	ecore_evas_callback_mouse_in_set(ui->ee, _mouse_in);
+	ecore_evas_callback_mouse_out_set(ui->ee, _mouse_out);
 	ui->e = ecore_evas_get(ui->ee);
 	ecore_evas_show(ui->ee);
 

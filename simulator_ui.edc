@@ -131,11 +131,28 @@ group {
 			}
 			description {
 				state: "default" 0.0;
+				color: 187 0 0 0;
+			}
+			description {
+				state: "default" 1.0;
 				color: 187 0 0 255;
 			}
 	}
 
 	programs {
+		program {
+			signal: "magnet,show";
+			source: CHIMAERA_SIMULATOR_UI_URI;
+			action: STATE_SET "default" 1.0;
+			target: "magnet";
+		}
+		program {
+			signal: "magnet,hide";
+			source: CHIMAERA_SIMULATOR_UI_URI;
+			action: STATE_SET "default" 0.0;
+			target: "magnet";
+		}
+
 		program {
 			signal: "48";
 			source: CHIMAERA_SIMULATOR_UI_URI;
