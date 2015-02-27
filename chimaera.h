@@ -54,9 +54,14 @@
 #	define CHIMAERA_PROP_ZVEL_URI		CHIMAERA_URI"#PropZVel"
 #endif
 
+// dump uri
+#define CHIMAERA_DUMP_URI					CHIMAERA_URI"#Dump"
+#define CHIMAERA_VALUES_URI				CHIMAERA_URI"#Values"
+
 // plugin uris
 #define CHIMAERA_DUMMY_IN_URI			CHIMAERA_URI"#dummy_in"
 #define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
+#define CHIMAERA_DUMP_IN_URI			CHIMAERA_URI"#dump_in"
 
 #define CHIMAERA_FILTER_URI				CHIMAERA_URI"#filter"
 #define CHIMAERA_MAPPER_URI				CHIMAERA_URI"#mapper"
@@ -66,6 +71,7 @@
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 
 const LV2_Descriptor dummy_in;
+const LV2_Descriptor dump_in;
 const LV2_Descriptor tuio2_in;
 const LV2_Descriptor filter;
 const LV2_Descriptor mapper;
@@ -82,8 +88,9 @@ const LV2UI_Descriptor simulator_ui;
 // bundle enums and structs
 typedef enum _chimaera_state_t		chimaera_state_t;
 typedef struct _chimaera_event_t	chimaera_event_t;
+typedef struct _chimaera_dump_t		chimaera_dump_t;
 typedef struct _chimaera_forge_t	chimaera_forge_t;
-typedef struct _chimaera_dict_t chimaera_dict_t;
+typedef struct _chimaera_dict_t		chimaera_dict_t;
 
 enum _chimaera_state_t {
 	CHIMAERA_STATE_NONE		= 0,
@@ -104,11 +111,18 @@ struct _chimaera_event_t {
 	float Z;
 };
 
+struct _chimaera_dump_t {
+	uint32_t sensors;
+	int32_t values [160];
+};
+
 struct _chimaera_forge_t {
 	LV2_Atom_Forge forge;
 
 	struct {
 		LV2_URID event;
+		LV2_URID dump;
+		LV2_URID values;
 
 #if !defined(CHIMAERA_FAST_DISPATCH)
 		LV2_URID none;
@@ -142,8 +156,40 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 	LV2_Atom_Forge *forge = &cforge->forge;
 
 	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
+	cforge->uris.dump = map->map(map->handle, CHIMAERA_DUMP_URI);
+	cforge->uris.values = map->map(map->handle, CHIMAERA_VALUES_URI);
 
 	lv2_atom_forge_init(forge, map);
+}
+
+static inline void
+chimaera_dump_forge(chimaera_forge_t *cforge, chimaera_dump_t *dump)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+
+	size_t size = sizeof(uint32_t) + dump->sensors*sizeof(int32_t);
+
+	lv2_atom_forge_atom(forge, size, cforge->uris.dump);
+ 	lv2_atom_forge_raw(forge, dump, size); 
+	lv2_atom_forge_pad(forge, size);
+}
+
+static inline void
+chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_dump_t *dump)
+{
+	const chimaera_dump_t *ptr;
+
+	ptr = LV2_ATOM_CONTENTS_CONST(LV2_Atom, atom);
+	memcpy(dump, ptr, atom->size);
+}
+
+static inline int
+chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
+{
+	if(atom->type == cforge->uris.dump)
+		return 1;
+	
+	return 0;
 }
 
 static inline void
@@ -189,6 +235,8 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 	LV2_Atom_Forge *forge = &cforge->forge;
 
 	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
+	cforge->uris.dump = map->map(map->handle, CHIMAERA_DUMP_URI);
+	cforge->uris.values = map->map(map->handle, CHIMAERA_VALUES_URI);
 
 	cforge->uris.none = map->map(map->handle, CHIMAERA_STATE_NONE_URI);
 	cforge->uris.on = map->map(map->handle, CHIMAERA_STATE_ON_URI);
@@ -205,6 +253,42 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 	cforge->uris.Z = map->map(map->handle, CHIMAERA_PROP_ZVEL_URI);
 
 	lv2_atom_forge_init(forge, map);
+}
+
+static inline void
+chimaera_dump_forge(chimaera_forge_t *cforge, chimaera_dump_t *dump)
+{
+	LV2_Atom_Forge *forge = &cforge->forge;
+
+	LV2_Atom_Forge_Frame obj;
+	lv2_atom_forge_object(forge, &obj, 0, cforge->uris.dump);
+		lv2_atom_forge_key(forge, cforge->uris.values);
+		lv2_atom_forge_vector(forge, sizeof(int32_t), forge->Int, dump->sensors, dump->values);
+	lv2_atom_forge_pop(forge, &obj);
+}
+
+static inline void
+chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_dump_t *dump)
+{
+	const LV2_Atom_Vector *vec = (const LV2_Atom_Vector *)atom;
+	const int32_t *values = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Vector, atom);
+
+	dump->sensors = vec->body.child_size;
+	for(int i=0; i<dump->sensors; i++)
+		dump->values[i] = values[i];
+}
+
+static inline int
+chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
+{
+	const LV2_Atom_Forge *forge = &cforge->forge;
+	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
+
+	if(lv2_atom_forge_is_object_type(forge, atom->type)
+			&& (obj->body.otype == cforge->uris.dump) )
+		return 1;
+	
+	return 0;
 }
 
 static inline void

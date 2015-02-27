@@ -26,6 +26,7 @@ add_library(chimaera MODULE
 	chimaera.c
 	libosc/osc.c
 	dummy_in.c
+	dump_in.c
 	tuio2_in.c
 	filter.c
 	mapper.c

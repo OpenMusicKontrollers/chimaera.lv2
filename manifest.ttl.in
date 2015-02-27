@@ -29,6 +29,11 @@ chim:tuio2_in
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
+chim:dump_in
+	a lv2:Plugin ;
+	lv2:binary <chimaera@LIB_EXT@> ;
+	rdfs:seeAlso <chimaera.ttl> .
+
 chim:filter
 	a lv2:Plugin ;
 	lv2:binary <chimaera@LIB_EXT@> ;
