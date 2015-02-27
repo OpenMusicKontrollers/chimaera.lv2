@@ -34,16 +34,24 @@ struct _UI {
 	LV2UI_Controller controller;
 	LV2UI_Resize *resize;
 
-	chimaera_event_t cev;
-
-	int units;
-
 	int uw, uh, bs;
 	int w, h;
+
+	chimaera_dump_t dump;
+
+	char theme_path[512];
+
+	volatile int dump_needs_update;
+	volatile int event_needs_update;
+
 	Ecore_Evas *ee;
 	Evas *e;
 	Evas_Object *theme;
+	Evas_Object *hbox;
 };
+
+static void _dump_update(UI *ui);
+static void _event_update(UI *ui);
 
 // Idle interface
 static int
@@ -53,6 +61,18 @@ idle_cb(LV2UI_Handle handle)
 
 	if(!ui)
 		return -1;
+
+	if(ui->dump_needs_update)
+	{
+		_dump_update(ui);
+		ui->dump_needs_update = 0;
+	}
+
+	if(ui->event_needs_update)
+	{
+		_event_update(ui);
+		ui->event_needs_update = 0;
+	}
 
 	ecore_main_loop_iterate();
 	
@@ -112,123 +132,69 @@ resize_cb(LV2UI_Feature_Handle handle, int w, int h)
   
   return 0;
 }
-	
-static inline void
-_write_event(UI *ui, chimaera_event_t *cev)
-{
-	uint8_t buf[256];
-
-	lv2_atom_forge_set_buffer(&ui->cforge.forge, buf, 256);
-	chimaera_event_forge(&ui->cforge, cev);
-
-	ui->write_function(ui->controller, 0, ui->cforge.forge.size, ui->uris.event_transfer, buf);
-}
-
-static inline void
-_get_pos(UI *ui, Evas_Coord_Point *coord, float *dx, float *dz, float *dw)
-{
-	Evas_Coord x, y, w, h;
-	const Evas_Object *canvas = edje_object_part_object_get(ui->theme, "canvas");
-
-	evas_object_geometry_get(canvas, &x, &y, &w, &h);
-
-	*dx = (coord->x - x) / (float)w;
-	*dz = (coord->y - y) / (float)h;
-
-	if(*dx < 0.f)
-		*dx = 0.f;
-	if(*dx > 1.f)
-		*dx = 1.f;
-	if(*dz < 0.f)
-		*dz = 0.f;
-	if(*dz > 1.f)
-		*dz = 1.f;
-
-	*dw = 4.f / (float)w;
-}
 
 static void
-_mouse_down(void *data, Evas *e, Evas_Object *obj, void *event_info)
+_dump_fill(UI *ui)
 {
-	UI *ui = data;
-	Evas_Event_Mouse_Down *ev = event_info;
-	float x, z, w;
-
-	_get_pos(ui, &ev->canvas, &x, &z, &w);
-
-	edje_object_part_drag_value_set(ui->theme, "magnet", x, 0.0);
-	edje_object_part_drag_size_set(ui->theme, "magnet", w, z);
-
-	chimaera_event_t *cev = &ui->cev;
-
-	cev->state = CHIMAERA_STATE_ON;
-	cev->sid += 1;
-	cev->gid = 0;
-	cev->pid = ev->button == 1 ? 128 : 256;
-	cev->x = x;
-	cev->z = z;
-	cev->X = 0.f;
-	cev->Z = 0.f;
-
-	_write_event(ui, cev);
+	evas_object_table_clear(ui->hbox, EINA_TRUE);
 	
-	cev->state = CHIMAERA_STATE_SET;
-}
-
-static void
-_mouse_up(void *data, Evas *e, Evas_Object *obj, void *event_info)
-{
-	UI *ui = data;
-	Evas_Event_Mouse_Up *ev = event_info;
-
-	chimaera_event_t *cev = &ui->cev;
-	
-	cev->state = CHIMAERA_STATE_OFF;
-
-	_write_event(ui, cev);
-	
-	cev->state = CHIMAERA_STATE_IDLE;
-}
-
-static void
-_mouse_move(void *data, Evas *e, Evas_Object *obj, void *event_info)
-{
-	UI *ui = data;
-	Evas_Event_Mouse_Move *ev = event_info;
-	float x, z, w;
-
-	_get_pos(ui, &ev->cur.canvas, &x, &z, &w);
-
-	edje_object_part_drag_value_set(ui->theme, "magnet", x, 0.0);
-	edje_object_part_drag_size_set(ui->theme, "magnet", w, z);
-	
-	chimaera_event_t *cev = &ui->cev;
-
-	if(cev->state == CHIMAERA_STATE_SET)
+	for(int i=0; i<ui->dump.sensors; i++)
 	{
-		cev->x = x;
-		cev->z = z;
+		Evas_Object *north = edje_object_add(ui->e);
+		edje_object_file_set(north, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/sensor");
+		evas_object_size_hint_weight_set(north, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+		evas_object_size_hint_align_set(north, EVAS_HINT_FILL, EVAS_HINT_FILL);
+		edje_object_part_drag_value_set(north, "sensor", 0.5, 1.f);
+		edje_object_part_drag_size_set(north, "sensor", 1.f, 0.f);
+		evas_object_show(north);
+		evas_object_table_pack(ui->hbox, north, i, 0, 1, 1);
 		
-		_write_event(ui, cev);
+		Evas_Object *south = edje_object_add(ui->e);
+		edje_object_file_set(south, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/sensor");
+		evas_object_size_hint_weight_set(south, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+		evas_object_size_hint_align_set(south, EVAS_HINT_FILL, EVAS_HINT_FILL);
+		edje_object_part_drag_value_set(south, "sensor", 0.5, 0.f);
+		edje_object_part_drag_size_set(south, "sensor", 1.f, 0.f);
+		evas_object_show(south);
+		evas_object_table_pack(ui->hbox, south, i, 1, 1, 1);
+
+		ui->dump.values[i] = 0;
+	}
+
+	ui->dump_needs_update = 1;
+}
+
+static void
+_dump_update(UI *ui)
+{
+	int32_t *values = ui->dump.values;
+
+	for(int i=0; i<ui->dump.sensors; i++)
+	{
+		Evas_Object *north = evas_object_table_child_get(ui->hbox, i, 0);
+		Evas_Object *south = evas_object_table_child_get(ui->hbox, i, 1);
+		double rel = values[i];
+		rel *= 1.f / 0x7ff;
+		double north_size = rel < 0.f ? -rel : 0.f;
+		double south_size = rel < 0.f ? 0.f : rel;
+		uint8_t red = rel < 0.f ? (-rel)*0xbb : rel*0xbb;
+		
+		//printf("%i %i %lf %lf %lf\n", i, values[i], rel, north_size, south_size);
+
+		evas_object_color_set(north, 0xbb, 0xbb-red, 0xbb-red, 0xff);
+		evas_object_color_set(south, 0xbb, 0xbb-red, 0xbb-red, 0xff);
+
+		edje_object_part_drag_size_set(north, "sensor", 1.f, north_size);
+		edje_object_part_drag_size_set(south, "sensor", 1.f, south_size);
 	}
 }
 
 static void
-_mouse_in(Ecore_Evas *ee)
+_event_update(UI *ui)
 {
-	UI *ui = ecore_evas_data_get(ui->ee, "ui");
-		
-	edje_object_signal_emit(ui->theme, "magnet,show", CHIMAERA_SIMULATOR_UI_URI);
+	//TODO
 }
-
-static void
-_mouse_out(Ecore_Evas *ee)
-{
-	UI *ui = ecore_evas_data_get(ui->ee, "ui");
 	
-	edje_object_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
-}
-
 static LV2UI_Handle
 instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const char *bundle_path, LV2UI_Write_Function write_function, LV2UI_Controller controller, LV2UI_Widget *widget, const LV2_Feature *const *features)
 {
@@ -236,16 +202,19 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	edje_init();
 	//edje_frametime_set(0.04);
 
-	if(strcmp(plugin_uri, CHIMAERA_SIMULATOR_URI))
+	if(strcmp(plugin_uri, CHIMAERA_VISUALIZER_URI))
 		return NULL;
 
 	UI *ui = calloc(1, sizeof(UI));
 	if(!ui)
 		return NULL;
 
-	ui->units = 3;
-	ui->w = 10;
-	ui->h = 10;
+	ui->dump.sensors = 160;
+	ui->uw = 142;
+	ui->uh = 92;
+	ui->bs = 12;
+	ui->w = ui->uw*ui->dump.sensors/16 + 2*ui->bs;
+	ui->h = ui->uh*2 + 2*ui->bs;
 	ui->write_function = write_function;
 	ui->controller = controller;
 
@@ -279,34 +248,30 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	if(!ui->ee)
 		printf("could not start evas\n");
 	ecore_evas_data_set(ui->ee, "ui", ui);
-	ecore_evas_callback_mouse_in_set(ui->ee, _mouse_in);
-	ecore_evas_callback_mouse_out_set(ui->ee, _mouse_out);
 	ui->e = ecore_evas_get(ui->ee);
 	ecore_evas_show(ui->ee);
 
-	char buf[512];
-	sprintf(buf, "%s/chimaera_ui.edj", bundle_path);
+	sprintf(ui->theme_path, "%s/chimaera_ui.edj", bundle_path);
 
 	ui->theme = edje_object_add(ui->e);
-	edje_object_file_set(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI"/theme");
-	const char *unit_width = edje_object_data_get(ui->theme, "unit_width");
-	const char *unit_height = edje_object_data_get(ui->theme, "unit_height");
+	edje_object_file_set(ui->theme, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/theme");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
 	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
 	evas_object_resize(ui->theme, ui->w, ui->h);
 	evas_object_show(ui->theme);
 
-	ui->uw = atoi(unit_width);
-	ui->uh = atoi(unit_height);
+	ui->hbox = evas_object_table_add(ui->e);
+	evas_object_table_homogeneous_set(ui->hbox, EINA_TRUE);
+	evas_object_table_padding_set(ui->hbox, 4, 0);
+	evas_object_table_align_set(ui->hbox, 0.5, 0.5);
+	evas_object_size_hint_weight_set(ui->hbox, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+	evas_object_size_hint_align_set(ui->hbox, EVAS_HINT_FILL, EVAS_HINT_FILL);
+	evas_object_show(ui->hbox);
+	edje_object_part_swallow(ui->theme, "canvas", ui->hbox);
+
+	_dump_fill(ui);
+	
 	ui->bs = atoi(border_size);
-
-	ui->w = ui->uw*ui->units + 2*ui->bs;
-	ui->h = ui->uh + 2*ui->bs;
-
-	resize_cb(ui, ui->w, ui->h);
 
 	if(ui->resize)
     ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
@@ -322,6 +287,9 @@ cleanup(LV2UI_Handle handle)
 	if(ui)
 	{
 		ecore_evas_hide(ui->ee);
+	
+		edje_object_part_unswallow(ui->theme, ui->hbox);
+		evas_object_del(ui->hbox);
 
 		evas_object_del(ui->theme);
 
@@ -342,20 +310,37 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid, const 
 	// do nothing
 	if(i == 1)
 	{
-		int sensors = *(float *)buf;
-		ui->units = sensors / 16;
+		uint32_t sensors = *(float *)buf;
 
-		ui->w = ui->uw*ui->units + 2*ui->bs;
-		ui->h = ui->uh + 2*ui->bs;
+		if(sensors != ui->dump.sensors)
+		{
+			ui->dump.sensors = sensors;
 
-		resize_cb(ui, ui->w, ui->h);
+			ui->w = ui->uw*ui->dump.sensors/16 + 2*ui->bs;
+			ui->h = ui->uh*2 + 2*ui->bs;
+			if(ui->resize)
+				ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
 
-		char buf [16];
-		sprintf(buf, "%i", sensors);
-		edje_object_signal_emit(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI);
+			resize_cb(ui, ui->w, ui->h);
+			_dump_fill(ui);
+		}
+	}
+	else if( (i == 0) && (urid == ui->uris.event_transfer) )
+	{
+		const LV2_Atom *atom = buf;
+			
+		if(chimaera_dump_check_type(&ui->cforge, atom))
+		{
+			chimaera_dump_deforge(&ui->cforge, buf, &ui->dump);
+			ui->dump_needs_update = 1;
+		}
+		else if(chimaera_event_check_type(&ui->cforge, atom))
+		{
+			chimaera_event_t cev;
 
-		if(ui->resize)
-			ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
+			chimaera_event_deforge(&ui->cforge, buf, &cev);
+			ui->event_needs_update = 1;
+		}
 	}
 }
 
@@ -370,8 +355,8 @@ extension_data(const char *uri)
 	return NULL;
 }
 
-const LV2UI_Descriptor simulator_ui = {
-	.URI						= CHIMAERA_SIMULATOR_UI_URI,
+const LV2UI_Descriptor visualizer_ui = {
+	.URI						= CHIMAERA_VISUALIZER_UI_URI,
 	.instantiate		= instantiate,
 	.cleanup				= cleanup,
 	.port_event			= port_event,

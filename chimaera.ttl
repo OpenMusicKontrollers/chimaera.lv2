@@ -132,7 +132,7 @@ chim:dump_in
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports chim:Dump ;
 		lv2:index 1 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
@@ -329,6 +329,74 @@ chim:simulator
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports chim:Event ;
+		lv2:index 2 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+	] .
+
+# Visualizer UI
+chim:visualizer_ui
+	a ui:X11UI ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "sensors" ;
+		ui:protocol ui:floatProtocol ;
+	] ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "event_in" ;
+		ui:protocol atom:eventTransfer ;
+	] ;
+	lv2:requiredFeature ui:idleInterface ;
+  lv2:optionalFeature ui:noUserResize ;
+  lv2:extensionData ui:idleInterface, ui:showInterface .
+
+# Visualizer Plugin
+chim:visualizer
+	a lv2:Plugin,
+		lv2:ConverterPlugin;
+	doap:name "Chimaera Visualizer" ;
+	doap:license lic:Artistic-2.0 ;
+	lv2:project proj:chimaera ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+
+	lv2:port [
+	# input event port
+	  a lv2:InputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		atom:supports chim:Dump ;
+		lv2:index 0 ;
+		lv2:symbol "event_in" ;
+		lv2:name "Event Input" ;
+	] , [
+	# input control port
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 1 ;
+		lv2:symbol "sensors" ;
+		lv2:name "Sensors" ;
+		lv2:default 48 ;
+		lv2:minimum 48 ;
+		lv2:maximum 160 ;
+		lv2:portProperty lv2:integer ;
+		lv2:portProperty lv2:enumeration ;
+		lv2:scalePoint [ rdfs:label "S48" ; rdf:value 48 ] ;
+		lv2:scalePoint [ rdfs:label "S64" ; rdf:value 64 ] ;
+		lv2:scalePoint [ rdfs:label "S80" ; rdf:value 80 ] ;
+		lv2:scalePoint [ rdfs:label "S96" ; rdf:value 96 ] ;
+		lv2:scalePoint [ rdfs:label "S112" ; rdf:value 112 ] ;
+		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
+		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
+		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
+	] , [
+	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		atom:supports chim:Dump ;
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;

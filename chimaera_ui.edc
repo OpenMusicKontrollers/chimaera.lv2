@@ -9,5 +9,15 @@
 #define CHIMAERA_UI_URI						"http://open-music-kontrollers.ch/lv2/chimaera_ui"
 
 collections {
+	images {
+		image: "encapsulation.png" COMP;
+		image: "omk_logo_256x256.png" COMP;
+	}
+
+	fonts {
+		font: "DejaVuSansMono-Bold.ttf" "default";
+	}
+
 #	include <simulator_ui.edc>
+#	include <visualizer_ui.edc>
 }

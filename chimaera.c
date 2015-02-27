@@ -38,6 +38,10 @@ lv2_descriptor(uint32_t index)
 			return &mapper;
 		case 7:
 			return &simulator;
+		case 8:
+			return &visualizer;
+		case 9:
+			return &dump_in;
 		default:
 			return NULL;
 	}

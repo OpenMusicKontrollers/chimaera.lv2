@@ -18,6 +18,10 @@ pkg_search_module(EDJE REQUIRED edje>=1.12)
 include_directories(${EDJE_INCLUDE_DIRS})
 set(LIBS_UI ${LIBS_UI} ${EDJE_LDFLAGS})
 
+option(CHIMAERA_UI_PLUGINS
+	"Build Chimaera UI plugins"
+	ON)
+
 option(CHIMAERA_FAST_DISPATCH
 	"Use custom dispatch structure instead of LV2 built-ins"
 	OFF)
@@ -31,9 +35,13 @@ add_library(chimaera MODULE
 	filter.c
 	mapper.c
 	simulator.c
+	visualizer.c
 	control_out.c
 	midi_out.c
 	osc_out.c)
+if(CHIMAERA_UI_PLUGINS)
+	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_UI_PLUGINS)
+endif()
 if(CHIMAERA_FAST_DISPATCH)
 	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_FAST_DISPATCH)
 endif()
@@ -41,45 +49,50 @@ target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})
 
-add_library(chimaera_ui MODULE
-	chimaera_ui.c
-	simulator_ui.c)
-if(CHIMAERA_FAST_DISPATCH)
-	target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_FAST_DISPATCH)
-endif()
-target_link_libraries(chimaera_ui ${LIBS_UI})
-set_target_properties(chimaera_ui PROPERTIES PREFIX "")
-install(TARGETS chimaera_ui DESTINATION ${DEST})
-
-find_program(EDJE_CC NAMES edje_cc)
-if(EDJE_CC_NOTFOUND)
-  message(SEND_ERROR "edje_cc not found")
-else(EDJE_CC_NOTFOUND)
-  message(STATUS "edje_cc found: " ${EDJE_CC})
-endif(EDJE_CC_NOTFOUND)
-
-add_custom_command(
-	OUTPUT ${PROJECT_BINARY_DIR}/chimaera_ui.edj
-	COMMAND ${EDJE_CC} ARGS
-		"-fd" ${PROJECT_SOURCE_DIR}/font
-		"-id" ${PROJECT_SOURCE_DIR}/pix
-		${PROJECT_SOURCE_DIR}/chimaera_ui.edc
-		${PROJECT_BINARY_DIR}/chimaera_ui.edj
-	DEPENDS
-		${PROJECT_SOURCE_DIR}/chimaera_ui.edc
-		${PROJECT_SOURCE_DIR}/simulator_ui.edc
-		${PROJECT_SOURCE_DIR}/pix/48.png
-		${PROJECT_SOURCE_DIR}/pix/64.png
-		${PROJECT_SOURCE_DIR}/pix/80.png
-		${PROJECT_SOURCE_DIR}/pix/96.png
-		${PROJECT_SOURCE_DIR}/pix/112.png
-		${PROJECT_SOURCE_DIR}/pix/128.png
-		${PROJECT_SOURCE_DIR}/pix/144.png
-		${PROJECT_SOURCE_DIR}/pix/160.png)
-add_custom_target(THEME ALL DEPENDS ${PROJECT_BINARY_DIR}/chimaera_ui.edj)
-
 configure_file(${PROJECT_SOURCE_DIR}/manifest.ttl.in
 	${PROJECT_BINARY_DIR}/manifest.ttl)
 install(FILES ${PROJECT_BINARY_DIR}/manifest.ttl DESTINATION ${DEST})
 install(FILES ${PROJECT_SOURCE_DIR}/chimaera.ttl DESTINATION ${DEST})
-install(FILES ${PROJECT_BINARY_DIR}/chimaera_ui.edj DESTINATION ${DEST})
+
+if(CHIMAERA_UI_PLUGINS)
+	add_library(chimaera_ui MODULE
+		chimaera_ui.c
+		simulator_ui.c
+		visualizer_ui.c)
+	target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_UI_PLUGINS)
+	if(CHIMAERA_FAST_DISPATCH)
+		target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_FAST_DISPATCH)
+	endif()
+	target_link_libraries(chimaera_ui ${LIBS_UI})
+	set_target_properties(chimaera_ui PROPERTIES PREFIX "")
+	install(TARGETS chimaera_ui DESTINATION ${DEST})
+
+	find_program(EDJE_CC NAMES edje_cc)
+	if(EDJE_CC_NOTFOUND)
+		message(SEND_ERROR "edje_cc not found")
+	else(EDJE_CC_NOTFOUND)
+		message(STATUS "edje_cc found: " ${EDJE_CC})
+	endif(EDJE_CC_NOTFOUND)
+
+	add_custom_command(
+		OUTPUT ${PROJECT_BINARY_DIR}/chimaera_ui.edj
+		COMMAND ${EDJE_CC} ARGS
+			"-fd" ${PROJECT_SOURCE_DIR}/font
+			"-id" ${PROJECT_SOURCE_DIR}/pix
+			${PROJECT_SOURCE_DIR}/chimaera_ui.edc
+			${PROJECT_BINARY_DIR}/chimaera_ui.edj
+		DEPENDS
+			${PROJECT_SOURCE_DIR}/chimaera_ui.edc
+			${PROJECT_SOURCE_DIR}/simulator_ui.edc
+			${PROJECT_SOURCE_DIR}/visualizer_ui.edc
+			${PROJECT_SOURCE_DIR}/pix/48.png
+			${PROJECT_SOURCE_DIR}/pix/64.png
+			${PROJECT_SOURCE_DIR}/pix/80.png
+			${PROJECT_SOURCE_DIR}/pix/96.png
+			${PROJECT_SOURCE_DIR}/pix/112.png
+			${PROJECT_SOURCE_DIR}/pix/128.png
+			${PROJECT_SOURCE_DIR}/pix/144.png
+			${PROJECT_SOURCE_DIR}/pix/160.png)
+	add_custom_target(THEME ALL DEPENDS ${PROJECT_BINARY_DIR}/chimaera_ui.edj)
+	install(FILES ${PROJECT_BINARY_DIR}/chimaera_ui.edj DESTINATION ${DEST})
+endif()

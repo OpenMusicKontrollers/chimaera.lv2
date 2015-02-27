@@ -56,6 +56,7 @@
 
 // dump uri
 #define CHIMAERA_DUMP_URI					CHIMAERA_URI"#Dump"
+#define CHIMAERA_SENSORS_URI			CHIMAERA_URI"#Sensors"
 #define CHIMAERA_VALUES_URI				CHIMAERA_URI"#Values"
 
 // plugin uris
@@ -69,6 +70,7 @@
 #define CHIMAERA_MIDI_OUT_URI			CHIMAERA_URI"#midi_out"
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
+#define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 
 const LV2_Descriptor dummy_in;
 const LV2_Descriptor dump_in;
@@ -79,11 +81,16 @@ const LV2_Descriptor control_out;
 const LV2_Descriptor midi_out;
 const LV2_Descriptor osc_out;
 const LV2_Descriptor simulator;
+const LV2_Descriptor visualizer;
 
 // ui plugins uris
-#define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
+#if defined(CHIMAERA_UI_PLUGINS)
+#	define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
+#	define CHIMAERA_VISUALIZER_UI_URI	CHIMAERA_URI"#visualizer_ui"
 
 const LV2UI_Descriptor simulator_ui;
+const LV2UI_Descriptor visualizer_ui;
+#endif
 
 // bundle enums and structs
 typedef enum _chimaera_state_t		chimaera_state_t;
@@ -121,7 +128,9 @@ struct _chimaera_forge_t {
 
 	struct {
 		LV2_URID event;
+
 		LV2_URID dump;
+		LV2_URID sensors;
 		LV2_URID values;
 
 #if !defined(CHIMAERA_FAST_DISPATCH)
@@ -157,6 +166,7 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 
 	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
 	cforge->uris.dump = map->map(map->handle, CHIMAERA_DUMP_URI);
+	cforge->uris.sensors = map->map(map->handle, CHIMAERA_SENSORS_URI);
 	cforge->uris.values = map->map(map->handle, CHIMAERA_VALUES_URI);
 
 	lv2_atom_forge_init(forge, map);
@@ -236,6 +246,7 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 
 	cforge->uris.event = map->map(map->handle, CHIMAERA_EVENT_URI);
 	cforge->uris.dump = map->map(map->handle, CHIMAERA_DUMP_URI);
+	cforge->uris.sensors = map->map(map->handle, CHIMAERA_SENSORS_URI);
 	cforge->uris.values = map->map(map->handle, CHIMAERA_VALUES_URI);
 
 	cforge->uris.none = map->map(map->handle, CHIMAERA_STATE_NONE_URI);
@@ -259,21 +270,34 @@ static inline void
 chimaera_dump_forge(chimaera_forge_t *cforge, chimaera_dump_t *dump)
 {
 	LV2_Atom_Forge *forge = &cforge->forge;
+	LV2_Atom_Forge_Frame frame;
 
-	LV2_Atom_Forge_Frame obj;
-	lv2_atom_forge_object(forge, &obj, 0, cforge->uris.dump);
+	lv2_atom_forge_object(forge, &frame, 0, cforge->uris.dump);
+		lv2_atom_forge_key(forge, cforge->uris.sensors);
+		lv2_atom_forge_int(forge, dump->sensors);
+
 		lv2_atom_forge_key(forge, cforge->uris.values);
 		lv2_atom_forge_vector(forge, sizeof(int32_t), forge->Int, dump->sensors, dump->values);
-	lv2_atom_forge_pop(forge, &obj);
+	lv2_atom_forge_pop(forge, &frame);
 }
 
 static inline void
 chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_dump_t *dump)
 {
-	const LV2_Atom_Vector *vec = (const LV2_Atom_Vector *)atom;
-	const int32_t *values = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Vector, atom);
+	const LV2_Atom_Object *obj = (const LV2_Atom_Object *)atom;
+	const LV2_Atom_Int *sensors = NULL;
+	const LV2_Atom_Vector *vec = NULL;
 
-	dump->sensors = vec->body.child_size;
+	LV2_Atom_Object_Query q [] = {
+		{ cforge->uris.sensors, (const LV2_Atom **)&sensors },
+		{ cforge->uris.values, (const LV2_Atom **)&vec },
+		LV2_ATOM_OBJECT_QUERY_END
+	};
+	lv2_atom_object_query(obj, q);
+	
+	const int32_t *values = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Vector, vec);
+
+	dump->sensors = sensors->body;
 	for(int i=0; i<dump->sensors; i++)
 		dump->values[i] = values[i];
 }
@@ -364,7 +388,6 @@ chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chi
 {
 	const LV2_Atom_Forge *forge = &cforge->forge;
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
-	const LV2_Atom_Property_Body *prop;
 
 	if(obj->body.id == cforge->uris.none)
 		ev->state = CHIMAERA_STATE_NONE;

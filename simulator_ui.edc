@@ -9,9 +9,6 @@
 #define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
 
 images {
-	image: "encapsulation.png" COMP;
-	image: "omk_logo_256x256.png" COMP;
-
 	image: "48.png" COMP;
 	image: "64.png" COMP;
 	image: "80.png" COMP;
@@ -20,10 +17,6 @@ images {
 	image: "128.png" COMP;
 	image: "144.png" COMP;
 	image: "160.png" COMP;
-}
-
-fonts {
-	font: "DejaVuSansMono-Bold.ttf" "default";
 }
 
 group {
@@ -137,6 +130,7 @@ group {
 				state: "default" 1.0;
 				color: 187 0 0 255;
 			}
+		}
 	}
 
 	programs {
