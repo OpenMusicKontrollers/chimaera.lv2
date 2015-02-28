@@ -22,6 +22,7 @@
 @prefix ui:		<http://lv2plug.in/ns/extensions/ui#> .
 @prefix atom:	<http://lv2plug.in/ns/ext/atom#> .
 @prefix midi:	<http://lv2plug.in/ns/ext/midi#> .
+@prefix work: <http://lv2plug.in/ns/ext/worker#> .
 
 @prefix osc:	<http://opensoundcontrol.org#> .
 @prefix lic:	<http://opensource.org/licenses/> .
@@ -271,6 +272,28 @@ chim:mapper
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+	] .
+
+# Injector Plugin
+chim:injector
+	a lv2:Plugin,
+		lv2:ConverterPlugin;
+	doap:name "Chimaera Injector" ;
+	doap:license lic:Artistic-2.0 ;
+	lv2:project proj:chimaera ;
+	lv2:extensionData work:interface ;
+	lv2:requiredFeature work:schedule ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+
+	lv2:port [
+	# input event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports osc:OscEvent ;
+		lv2:index 0 ;
+		lv2:symbol "osc_out" ;
+		lv2:name "OSC Output" ;
 	] .
 
 # simulator UI

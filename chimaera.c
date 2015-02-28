@@ -42,6 +42,8 @@ lv2_descriptor(uint32_t index)
 			return &visualizer;
 		case 9:
 			return &dump_in;
+		case 10:
+			return &injector;
 		default:
 			return NULL;
 	}

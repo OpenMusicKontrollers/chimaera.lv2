@@ -27,6 +27,7 @@
 #include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
 #include <lv2/lv2plug.in/ns/ext/state/state.h>
+#include <lv2/lv2plug.in/ns/ext/worker/worker.h>
 #include <lv2/lv2plug.in/ns/extensions/ui/ui.h>
 
 #define LV2_OSC__OscEvent					"http://opensoundcontrol.org#OscEvent"
@@ -71,6 +72,7 @@
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
+#define CHIMAERA_INJECTOR_URI			CHIMAERA_URI"#injector"
 
 const LV2_Descriptor dummy_in;
 const LV2_Descriptor dump_in;
@@ -82,6 +84,7 @@ const LV2_Descriptor midi_out;
 const LV2_Descriptor osc_out;
 const LV2_Descriptor simulator;
 const LV2_Descriptor visualizer;
+const LV2_Descriptor injector;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)

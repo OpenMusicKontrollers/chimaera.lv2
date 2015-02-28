@@ -4,6 +4,8 @@ project(chimaera.lv2)
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/libosc)
+include_directories(${PROJECT_SOURCE_DIR}/libosc_stream)
+include_directories(${PROJECT_SOURCE_DIR}/inlist)
 
 set(DEST lib/lv2/chimaera.lv2)
 set(LIB_EXT ".so")
@@ -14,9 +16,9 @@ pkg_search_module(LV2 REQUIRED lv2>=1.10)
 include_directories(${LV2_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${LV2_LDFLAGS})
 
-pkg_search_module(EDJE REQUIRED edje>=1.12)
-include_directories(${EDJE_INCLUDE_DIRS})
-set(LIBS_UI ${LIBS_UI} ${EDJE_LDFLAGS})
+pkg_search_module(UV REQUIRED libuv>=1.0)
+include_directories(${UV_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${UV_LDFLAGS})
 
 option(CHIMAERA_UI_PLUGINS
 	"Build Chimaera UI plugins"
@@ -29,6 +31,11 @@ option(CHIMAERA_FAST_DISPATCH
 add_library(chimaera MODULE
 	chimaera.c
 	libosc/osc.c
+	libosc_stream/osc_stream.c
+	libosc_stream/osc_stream_slip.c
+	libosc_stream/osc_stream_udp.c
+	libosc_stream/osc_stream_tcp.c
+	libosc_stream/osc_stream_pipe.c
 	dummy_in.c
 	dump_in.c
 	tuio2_in.c
@@ -36,6 +43,7 @@ add_library(chimaera MODULE
 	mapper.c
 	simulator.c
 	visualizer.c
+	injector.c
 	control_out.c
 	midi_out.c
 	osc_out.c)
@@ -55,6 +63,10 @@ install(FILES ${PROJECT_BINARY_DIR}/manifest.ttl DESTINATION ${DEST})
 install(FILES ${PROJECT_SOURCE_DIR}/chimaera.ttl DESTINATION ${DEST})
 
 if(CHIMAERA_UI_PLUGINS)
+	pkg_search_module(EDJE REQUIRED edje>=1.12)
+	include_directories(${EDJE_INCLUDE_DIRS})
+	set(LIBS_UI ${LIBS_UI} ${EDJE_LDFLAGS})
+
 	add_library(chimaera_ui MODULE
 		chimaera_ui.c
 		simulator_ui.c
