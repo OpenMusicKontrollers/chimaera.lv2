@@ -44,7 +44,8 @@ struct _handle_t {
 };
 
 static LV2_Handle
-instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
+instantiate(const LV2_Descriptor* descriptor, double rate,
+	const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
 	handle_t *handle = calloc(1, sizeof(handle_t));
@@ -104,7 +105,8 @@ _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 }
 
 static int
-_on(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_on(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -141,7 +143,8 @@ _on(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t 
 }
 
 static int
-_off(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_off(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -167,7 +170,8 @@ _off(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 }
 
 static int
-_set(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_set(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -201,7 +205,8 @@ _set(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 }
 
 static int
-_idle(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_idle(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -260,7 +265,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 			const osc_data_t *buf = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
 
 			if(osc_check_packet((osc_data_t *)buf, len))
-				osc_dispatch_method(frames, (osc_data_t *)buf, len, (osc_method_t *)dummy, NULL, NULL, handle);
+				osc_dispatch_method(frames, (osc_data_t *)buf, len,
+					(osc_method_t *)dummy, NULL, NULL, handle);
 		}
 	}
 

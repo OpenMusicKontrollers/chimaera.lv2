@@ -141,7 +141,8 @@ _dump_fill(UI *ui)
 	for(int i=0; i<ui->dump.sensors; i++)
 	{
 		Evas_Object *north = edje_object_add(ui->e);
-		edje_object_file_set(north, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/sensor");
+		edje_object_file_set(north, ui->theme_path,
+			CHIMAERA_VISUALIZER_UI_URI"/sensor");
 		evas_object_size_hint_weight_set(north, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
 		evas_object_size_hint_align_set(north, EVAS_HINT_FILL, EVAS_HINT_FILL);
 		edje_object_part_drag_value_set(north, "sensor", 0.5, 1.f);
@@ -150,7 +151,8 @@ _dump_fill(UI *ui)
 		evas_object_table_pack(ui->hbox, north, i, 0, 1, 1);
 		
 		Evas_Object *south = edje_object_add(ui->e);
-		edje_object_file_set(south, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/sensor");
+		edje_object_file_set(south, ui->theme_path,
+			CHIMAERA_VISUALIZER_UI_URI"/sensor");
 		evas_object_size_hint_weight_set(south, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
 		evas_object_size_hint_align_set(south, EVAS_HINT_FILL, EVAS_HINT_FILL);
 		edje_object_part_drag_value_set(south, "sensor", 0.5, 0.f);
@@ -196,7 +198,11 @@ _event_update(UI *ui)
 }
 	
 static LV2UI_Handle
-instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const char *bundle_path, LV2UI_Write_Function write_function, LV2UI_Controller controller, LV2UI_Widget *widget, const LV2_Feature *const *features)
+instantiate(const LV2UI_Descriptor *descriptor,
+	const char *plugin_uri, const char *bundle_path,
+	LV2UI_Write_Function write_function,
+	LV2UI_Controller controller, LV2UI_Widget *widget,
+	const LV2_Feature *const *features)
 {
 	ecore_evas_init();
 	edje_init();
@@ -242,9 +248,11 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0, ui->w, ui->h);
+	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
+		ui->w, ui->h);
 	if(!ui->ee)
-		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0, ui->w, ui->h);
+		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
+			ui->w, ui->h);
 	if(!ui->ee)
 		printf("could not start evas\n");
 	ecore_evas_data_set(ui->ee, "ui", ui);
@@ -254,7 +262,8 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	sprintf(ui->theme_path, "%s/chimaera_ui.edj", bundle_path);
 
 	ui->theme = edje_object_add(ui->e);
-	edje_object_file_set(ui->theme, ui->theme_path, CHIMAERA_VISUALIZER_UI_URI"/theme");
+	edje_object_file_set(ui->theme, ui->theme_path,
+		CHIMAERA_VISUALIZER_UI_URI"/theme");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
 	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
 	evas_object_resize(ui->theme, ui->w, ui->h);
@@ -303,7 +312,8 @@ cleanup(LV2UI_Handle handle)
 }
 
 static void
-port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid, const void *buf)
+port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
+	const void *buf)
 {
 	UI *ui = handle;
 

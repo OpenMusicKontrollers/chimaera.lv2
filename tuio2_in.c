@@ -63,7 +63,8 @@ struct _handle_t {
 };
 
 static LV2_Handle
-instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
+instantiate(const LV2_Descriptor* descriptor, double rate,
+	const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
 	handle_t *handle = calloc(1, sizeof(handle_t));
@@ -127,7 +128,8 @@ _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 }
 
 static int
-_frm(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_frm(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -161,7 +163,8 @@ _frm(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 }
 
 static int
-_tok(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_tok(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -211,7 +214,8 @@ _tok(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t
 }
 
 static int
-_alv(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_alv(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	osc_data_t *ptr = buf;
@@ -352,7 +356,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 			const osc_data_t *buf = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
 
 			if(osc_check_packet((osc_data_t *)buf, len))
-				osc_dispatch_method(frames, (osc_data_t *)buf, len, (osc_method_t *)tuio2, NULL, NULL, handle);
+				osc_dispatch_method(frames, (osc_data_t *)buf, len,
+					(osc_method_t *)tuio2, NULL, NULL, handle);
 		}
 	}
 

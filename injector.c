@@ -125,7 +125,8 @@ _send_cb(osc_stream_t *stream, size_t size, void *data)
 }
 
 static LV2_Handle
-instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
+instantiate(const LV2_Descriptor* descriptor, double rate,
+	const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
 	handle_t *handle = calloc(1, sizeof(handle_t));
@@ -147,12 +148,14 @@ instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_pa
 	
 	if(!handle->sched)
 	{
-		fprintf(stderr, "%s: Host does not support worker:schedule\n", descriptor->URI);
+		fprintf(stderr, "%s: Host does not support worker:schedule\n",
+			descriptor->URI);
 		free(handle);
 		return NULL;
 	}
 
-	handle->uris.osc_OscEvent = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
+	handle->uris.osc_OscEvent = handle->map->map(handle->map->handle,
+		LV2_OSC__OscEvent);
 	chimaera_forge_init(&handle->cforge, handle->map);
 
 	handle->loop = uv_default_loop();

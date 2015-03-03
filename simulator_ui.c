@@ -121,7 +121,8 @@ _write_event(UI *ui, chimaera_event_t *cev)
 	lv2_atom_forge_set_buffer(&ui->cforge.forge, buf, 256);
 	chimaera_event_forge(&ui->cforge, cev);
 
-	ui->write_function(ui->controller, 0, ui->cforge.forge.size, ui->uris.event_transfer, buf);
+	ui->write_function(ui->controller, 0, ui->cforge.forge.size,
+		ui->uris.event_transfer, buf);
 }
 
 static inline void
@@ -230,7 +231,11 @@ _mouse_out(Ecore_Evas *ee)
 }
 
 static LV2UI_Handle
-instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const char *bundle_path, LV2UI_Write_Function write_function, LV2UI_Controller controller, LV2UI_Widget *widget, const LV2_Feature *const *features)
+instantiate(const LV2UI_Descriptor *descriptor,
+	const char *plugin_uri, const char *bundle_path,
+	LV2UI_Write_Function write_function,
+	LV2UI_Controller controller, LV2UI_Widget *widget,
+	const LV2_Feature *const *features)
 {
 	ecore_evas_init();
 	edje_init();
@@ -273,9 +278,11 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0, ui->w, ui->h);
+	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent,
+		0, 0, ui->w, ui->h);
 	if(!ui->ee)
-		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0, ui->w, ui->h);
+		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent,
+			0, 0, ui->w, ui->h);
 	if(!ui->ee)
 		printf("could not start evas\n");
 	ecore_evas_data_set(ui->ee, "ui", ui);
@@ -292,9 +299,12 @@ instantiate(const LV2UI_Descriptor *descriptor, const char *plugin_uri, const ch
 	const char *unit_width = edje_object_data_get(ui->theme, "unit_width");
 	const char *unit_height = edje_object_data_get(ui->theme, "unit_height");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
 	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
 	evas_object_resize(ui->theme, ui->w, ui->h);
 	evas_object_show(ui->theme);
@@ -335,7 +345,8 @@ cleanup(LV2UI_Handle handle)
 }
 
 static void
-port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid, const void *buf)
+port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
+	const void *buf)
 {
 	UI *ui = handle;
 

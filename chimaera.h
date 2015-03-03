@@ -188,7 +188,8 @@ chimaera_dump_forge(chimaera_forge_t *cforge, chimaera_dump_t *dump)
 }
 
 static inline void
-chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_dump_t *dump)
+chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
+	chimaera_dump_t *dump)
 {
 	const chimaera_dump_t *ptr;
 
@@ -225,7 +226,8 @@ chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 }
 
 static inline void
-chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_event_t *ev)
+chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
+	chimaera_event_t *ev)
 {
 	const chimaera_event_t *ptr;
 
@@ -280,12 +282,14 @@ chimaera_dump_forge(chimaera_forge_t *cforge, chimaera_dump_t *dump)
 		lv2_atom_forge_int(forge, dump->sensors);
 
 		lv2_atom_forge_key(forge, cforge->uris.values);
-		lv2_atom_forge_vector(forge, sizeof(int32_t), forge->Int, dump->sensors, dump->values);
+		lv2_atom_forge_vector(forge, sizeof(int32_t), forge->Int, dump->sensors,
+			dump->values);
 	lv2_atom_forge_pop(forge, &frame);
 }
 
 static inline void
-chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_dump_t *dump)
+chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
+	chimaera_dump_t *dump)
 {
 	const LV2_Atom_Object *obj = (const LV2_Atom_Object *)atom;
 	const LV2_Atom_Int *sensors = NULL;
@@ -387,7 +391,8 @@ chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 }
 
 static inline void
-chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom, chimaera_event_t *ev)
+chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
+	chimaera_event_t *ev)
 {
 	const LV2_Atom_Forge *forge = &cforge->forge;
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;

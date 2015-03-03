@@ -35,7 +35,8 @@ struct _handle_t {
 };
 
 static LV2_Handle
-instantiate(const LV2_Descriptor* descriptor, double rate, const char *bundle_path, const LV2_Feature *const *features)
+instantiate(const LV2_Descriptor* descriptor, double rate,
+	const char *bundle_path, const LV2_Feature *const *features)
 {
 	int i;
 	handle_t *handle = calloc(1, sizeof(handle_t));
@@ -85,7 +86,8 @@ activate(LV2_Handle instance)
 }
 
 static int
-_dump(osc_time_t time, const char *path, const char *fmt, osc_data_t *buf, size_t size, void *data)
+_dump(osc_time_t time, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
@@ -140,7 +142,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 			const osc_data_t *buf = LV2_ATOM_CONTENTS_CONST(LV2_Atom_Event, ev);
 
 			if(osc_check_packet((osc_data_t *)buf, len))
-				osc_dispatch_method(frames, (osc_data_t *)buf, len, (osc_method_t *)dump, NULL, NULL, handle);
+				osc_dispatch_method(frames, (osc_data_t *)buf, len,
+					(osc_method_t *)dump, NULL, NULL, handle);
 		}
 	}
 
