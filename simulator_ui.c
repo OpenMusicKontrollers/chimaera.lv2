@@ -107,7 +107,11 @@ resize_cb(LV2UI_Feature_Handle handle, int w, int h)
 	ui->w = w;
 	ui->h = h;
 
-	ecore_evas_resize(ui->ee, ui->w, ui->h);
+	if(ui->ee)
+		ecore_evas_resize(ui->ee, ui->w, ui->h);
+
+	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
+		ui->w, ui->h);
 	evas_object_resize(ui->theme, ui->w, ui->h);
   
   return 0;
@@ -215,17 +219,17 @@ _mouse_move(void *data, Evas *e, Evas_Object *obj, void *event_info)
 }
 
 static void
-_mouse_in(Ecore_Evas *ee)
+_mouse_in(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
-	UI *ui = ecore_evas_data_get(ui->ee, "ui");
+	UI *ui = data;
 		
 	edje_object_signal_emit(ui->theme, "magnet,show", CHIMAERA_SIMULATOR_UI_URI);
 }
 
 static void
-_mouse_out(Ecore_Evas *ee)
+_mouse_out(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
-	UI *ui = ecore_evas_data_get(ui->ee, "ui");
+	UI *ui = data;
 	
 	edje_object_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
 }
@@ -278,18 +282,25 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent,
-		0, 0, ui->w, ui->h);
-	if(!ui->ee)
-		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent,
+	if(descriptor == &simulator_ui) // load X11 UI?
+	{
+		fprintf(stdout, "%s: using X11 UI\n", descriptor->URI);
+
+		ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent,
 			0, 0, ui->w, ui->h);
-	if(!ui->ee)
-		printf("could not start evas\n");
-	ecore_evas_data_set(ui->ee, "ui", ui);
-	ecore_evas_callback_mouse_in_set(ui->ee, _mouse_in);
-	ecore_evas_callback_mouse_out_set(ui->ee, _mouse_out);
-	ui->e = ecore_evas_get(ui->ee);
-	ecore_evas_show(ui->ee);
+		if(!ui->ee)
+			ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent,
+				0, 0, ui->w, ui->h);
+		if(!ui->ee)
+			printf("could not start evas\n");
+		ui->e = ecore_evas_get(ui->ee);
+		ecore_evas_show(ui->ee);
+	}
+	else if(descriptor == &simulator_eo) // load Eo UI?
+	{
+		ui->ee = NULL;
+		ui->e = evas_object_evas_get((Evas_Object *)parent);
+	}
 
 	char buf[512];
 	sprintf(buf, "%s/chimaera_ui.edj", bundle_path);
@@ -299,12 +310,20 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	const char *unit_width = edje_object_data_get(ui->theme, "unit_width");
 	const char *unit_height = edje_object_data_get(ui->theme, "unit_height");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
+	evas_object_size_hint_weight_set(ui->theme, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+	evas_object_size_hint_align_set(ui->theme, EVAS_HINT_FILL, EVAS_HINT_FILL);
+	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
+		ui->w, ui->h);
 	evas_object_event_callback_add(ui->theme,
 		EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
 	evas_object_event_callback_add(ui->theme,
 		EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
 	evas_object_event_callback_add(ui->theme,
 		EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_IN, _mouse_in, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_OUT, _mouse_out, ui);
 	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
 	evas_object_resize(ui->theme, ui->w, ui->h);
 	evas_object_show(ui->theme);
@@ -320,6 +339,11 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	if(ui->resize)
     ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
+	
+	if(ui->ee) // X11 UI
+		*(Evas_Object **)widget = NULL;
+	else // Eo UI
+		*(Evas_Object **)widget = ui->theme;
 
 	return ui;
 }
@@ -331,11 +355,13 @@ cleanup(LV2UI_Handle handle)
 	
 	if(ui)
 	{
-		ecore_evas_hide(ui->ee);
+		if(ui->ee) // X11 UI
+			ecore_evas_hide(ui->ee);
 
 		evas_object_del(ui->theme);
 
-		ecore_evas_free(ui->ee);
+		if(ui->ee) // X11 UI
+			ecore_evas_free(ui->ee);
 		
 		free(ui);
 	}
@@ -380,6 +406,14 @@ extension_data(const char *uri)
 		
 	return NULL;
 }
+
+const LV2UI_Descriptor simulator_eo = {
+	.URI						= CHIMAERA_SIMULATOR_EO_URI,
+	.instantiate		= instantiate,
+	.cleanup				= cleanup,
+	.port_event			= port_event,
+	.extension_data	= NULL
+};
 
 const LV2UI_Descriptor simulator_ui = {
 	.URI						= CHIMAERA_SIMULATOR_UI_URI,

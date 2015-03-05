@@ -34,7 +34,6 @@
 
 // bundle uris
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
-#define CHIMAERA_UI_URI						"http://open-music-kontrollers.ch/lv2/chimaera_ui"
 
 // event uris
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#Event"
@@ -88,8 +87,14 @@ const LV2_Descriptor injector;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
+#	define CHIMAERA_SIMULATOR_EO_URI	CHIMAERA_URI"#simulator_eo"
+#	define CHIMAERA_VISUALIZER_EO_URI	CHIMAERA_URI"#visualizer_eo"
+
 #	define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
 #	define CHIMAERA_VISUALIZER_UI_URI	CHIMAERA_URI"#visualizer_ui"
+
+const LV2UI_Descriptor simulator_eo;
+const LV2UI_Descriptor visualizer_eo;
 
 const LV2UI_Descriptor simulator_ui;
 const LV2UI_Descriptor visualizer_ui;

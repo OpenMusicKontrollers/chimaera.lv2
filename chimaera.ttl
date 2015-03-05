@@ -299,14 +299,12 @@ chim:injector
 # simulator UI
 chim:simulator_ui
 	a ui:X11UI ;
-	#ui:portNotification [
-	#	ui:plugin chim:simulator ;
-	#	lv2:symbol "event_in" ;
-	#	ui:protocol atom:eventTransfer ;
-	#] ;
 	lv2:requiredFeature ui:idleInterface ;
   lv2:optionalFeature ui:noUserResize ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
+
+chim:simulator_eo
+	a ui:EoUI .
 
 # Simulator Plugin
 chim:simulator
@@ -373,6 +371,19 @@ chim:visualizer_ui
 	lv2:requiredFeature ui:idleInterface ;
   lv2:optionalFeature ui:noUserResize ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
+
+chim:visualizer_eo
+	a ui:EoUI ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "sensors" ;
+		ui:protocol ui:floatProtocol ;
+	] ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "event_in" ;
+		ui:protocol atom:eventTransfer ;
+	] .
 
 # Visualizer Plugin
 chim:visualizer

@@ -127,7 +127,11 @@ resize_cb(LV2UI_Feature_Handle handle, int w, int h)
 	ui->w = w;
 	ui->h = h;
 
-	ecore_evas_resize(ui->ee, ui->w, ui->h);
+	if(ui->ee)
+		ecore_evas_resize(ui->ee, ui->w, ui->h);
+	
+	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
+		ui->w, ui->h);
 	evas_object_resize(ui->theme, ui->w, ui->h);
   
   return 0;
@@ -248,16 +252,23 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
-		ui->w, ui->h);
-	if(!ui->ee)
-		ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
+	if(descriptor == &simulator_ui) // load X11 UI?
+	{
+		ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
 			ui->w, ui->h);
-	if(!ui->ee)
-		printf("could not start evas\n");
-	ecore_evas_data_set(ui->ee, "ui", ui);
-	ui->e = ecore_evas_get(ui->ee);
-	ecore_evas_show(ui->ee);
+		if(!ui->ee)
+			ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
+				ui->w, ui->h);
+		if(!ui->ee)
+			printf("could not start evas\n");
+		ui->e = ecore_evas_get(ui->ee);
+		ecore_evas_show(ui->ee);
+	}
+	else if(descriptor == &simulator_eo) // load Eo UI?
+	{
+		ui->ee = NULL;
+		ui->e = evas_object_evas_get((Evas_Object *)parent);
+	}
 
 	sprintf(ui->theme_path, "%s/chimaera_ui.edj", bundle_path);
 
@@ -265,6 +276,10 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	edje_object_file_set(ui->theme, ui->theme_path,
 		CHIMAERA_VISUALIZER_UI_URI"/theme");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
+	evas_object_size_hint_weight_set(ui->theme, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+	evas_object_size_hint_align_set(ui->theme, EVAS_HINT_FILL, EVAS_HINT_FILL);
+	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
+		ui->w, ui->h);
 	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
 	evas_object_resize(ui->theme, ui->w, ui->h);
 	evas_object_show(ui->theme);
@@ -284,6 +299,11 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	if(ui->resize)
     ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
+	
+	if(ui->ee) // X11 UI
+		*(Evas_Object **)widget = NULL;
+	else // Eo UI
+		*(Evas_Object **)widget = ui->theme;
 
 	return ui;
 }
@@ -295,14 +315,16 @@ cleanup(LV2UI_Handle handle)
 	
 	if(ui)
 	{
-		ecore_evas_hide(ui->ee);
+		if(ui->ee)
+			ecore_evas_hide(ui->ee);
 	
 		edje_object_part_unswallow(ui->theme, ui->hbox);
 		evas_object_del(ui->hbox);
 
 		evas_object_del(ui->theme);
 
-		ecore_evas_free(ui->ee);
+		if(ui->ee)
+			ecore_evas_free(ui->ee);
 		
 		free(ui);
 	}
@@ -364,6 +386,14 @@ extension_data(const char *uri)
 		
 	return NULL;
 }
+
+const LV2UI_Descriptor visualizer_eo = {
+	.URI						= CHIMAERA_VISUALIZER_EO_URI,
+	.instantiate		= instantiate,
+	.cleanup				= cleanup,
+	.port_event			= port_event,
+	.extension_data	= NULL
+};
 
 const LV2UI_Descriptor visualizer_ui = {
 	.URI						= CHIMAERA_VISUALIZER_UI_URI,

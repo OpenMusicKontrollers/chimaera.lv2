@@ -23,9 +23,15 @@ lv2ui_descriptor(uint32_t index)
 	switch(index)
 	{
 		case 0:
-			return &simulator_ui;
+			return &simulator_eo;
 		case 1:
+			return &visualizer_eo;
+
+		case 2:
+			return &simulator_ui;
+		case 3:
 			return &visualizer_ui;
+
 		default:
 			return NULL;
 	}
