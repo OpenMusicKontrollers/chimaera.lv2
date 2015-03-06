@@ -252,7 +252,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	if(descriptor == &simulator_ui) // load X11 UI?
+	if(descriptor == &visualizer_ui) // load X11 UI?
 	{
 		ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent, 0, 0,
 			ui->w, ui->h);
@@ -264,7 +264,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 		ui->e = ecore_evas_get(ui->ee);
 		ecore_evas_show(ui->ee);
 	}
-	else if(descriptor == &simulator_eo) // load Eo UI?
+	else if(descriptor == &visualizer_eo) // load Eo UI?
 	{
 		ui->ee = NULL;
 		ui->e = evas_object_evas_get((Evas_Object *)parent);
