@@ -112,6 +112,7 @@ resize_cb(LV2UI_Feature_Handle handle, int w, int h)
 
 	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
 		ui->w, ui->h);
+	evas_object_size_hint_min_set(ui->theme, ui->w, ui->h);
 	evas_object_resize(ui->theme, ui->w, ui->h);
   
   return 0;
@@ -312,6 +313,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
 	evas_object_size_hint_weight_set(ui->theme, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
 	evas_object_size_hint_align_set(ui->theme, EVAS_HINT_FILL, EVAS_HINT_FILL);
+	evas_object_size_hint_min_set(ui->theme, ui->w, ui->h);
 	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
 		ui->w, ui->h);
 	evas_object_event_callback_add(ui->theme,
