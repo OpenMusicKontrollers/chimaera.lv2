@@ -360,11 +360,6 @@ chim:visualizer_ui
 	a ui:X11UI ;
 	ui:portNotification [
 		ui:plugin chim:visualizer ;
-		lv2:symbol "sensors" ;
-		ui:protocol ui:floatProtocol ;
-	] ;
-	ui:portNotification [
-		ui:plugin chim:visualizer ;
 		lv2:symbol "event_in" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
@@ -374,11 +369,6 @@ chim:visualizer_ui
 
 chim:visualizer_eo
 	a ui:EoUI ;
-	ui:portNotification [
-		ui:plugin chim:visualizer ;
-		lv2:symbol "sensors" ;
-		ui:protocol ui:floatProtocol ;
-	] ;
 	ui:portNotification [
 		ui:plugin chim:visualizer ;
 		lv2:symbol "event_in" ;
@@ -424,16 +414,6 @@ chim:visualizer
 		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
 		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
 		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
-	] , [
-	# output event port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
-		atom:supports chim:Dump ;
-		lv2:index 2 ;
-		lv2:symbol "event_out" ;
-		lv2:name "Event Output" ;
 	] .
 
 # Control Plugin

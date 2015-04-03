@@ -48,19 +48,16 @@ struct _UI {
 	Evas *e;
 	Evas_Object *theme;
 	Evas_Object *hbox;
+	Ecore_Animator *anim;
 };
 
 static void _dump_update(UI *ui);
 static void _event_update(UI *ui);
 
-// Idle interface
-static int
-idle_cb(LV2UI_Handle handle)
+static Eina_Bool
+_animator(void *data)
 {
-	UI *ui = handle;
-
-	if(!ui)
-		return -1;
+	UI *ui = data;
 
 	if(ui->dump_needs_update)
 	{
@@ -73,6 +70,18 @@ idle_cb(LV2UI_Handle handle)
 		_event_update(ui);
 		ui->event_needs_update = 0;
 	}
+
+	return EINA_TRUE; // reload callback
+}
+
+// Idle interface
+static int
+idle_cb(LV2UI_Handle handle)
+{
+	UI *ui = handle;
+
+	if(!ui)
+		return -1;
 
 	ecore_main_loop_iterate();
 	
@@ -318,6 +327,8 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	else // Eo UI
 		*(Evas_Object **)widget = ui->theme;
 
+	ui->anim = ecore_animator_add(_animator, ui);
+
 	return ui;
 }
 
@@ -328,6 +339,8 @@ cleanup(LV2UI_Handle handle)
 	
 	if(ui)
 	{
+		ecore_animator_del(ui->anim);
+
 		if(ui->ee)
 		{
 			ecore_evas_hide(ui->ee);
@@ -370,7 +383,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 	else if( (i == 0) && (urid == ui->uris.event_transfer) )
 	{
 		const LV2_Atom *atom = buf;
-			
+
 		if(chimaera_dump_check_type(&ui->cforge, atom))
 		{
 			chimaera_dump_deforge(&ui->cforge, buf, &ui->dump);
