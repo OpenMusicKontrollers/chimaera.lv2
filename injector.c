@@ -115,7 +115,8 @@ _recv_cb(osc_stream_t *stream, osc_data_t *buf, size_t size, void *data)
 
 	//printf("_recv_cb: %zu\n", size);
 
-	handle->respond(handle->target, size, buf);
+	if(handle->respond && handle->target)
+		handle->respond(handle->target, size, buf);
 }
 
 static void
