@@ -72,7 +72,8 @@ _show_cb(LV2UI_Handle handle)
 	if(!ui)
 		return -1;
 
-	ecore_evas_show(ui->ee);
+	if(ui->ee)
+		ecore_evas_show(ui->ee);
 
 	return 0;
 }
@@ -85,7 +86,8 @@ _hide_cb(LV2UI_Handle handle)
 	if(!ui)
 		return -1;
 
-	ecore_evas_hide(ui->ee);
+	if(ui->ee)
+		ecore_evas_hide(ui->ee);
 
 	return 0;
 }
@@ -235,6 +237,14 @@ _mouse_out(void *data, Evas *e, Evas_Object *obj, void *event_info)
 	edje_object_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
 }
 
+static void
+_delete(void *data, Evas *e, Evas_Object *obj, void *event_info)
+{
+	UI *ui = data;
+
+	//nothing
+}
+
 static LV2UI_Handle
 instantiate(const LV2UI_Descriptor *descriptor,
 	const char *plugin_uri, const char *bundle_path,
@@ -242,10 +252,6 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	LV2UI_Controller controller, LV2UI_Widget *widget,
 	const LV2_Feature *const *features)
 {
-	ecore_evas_init();
-	edje_init();
-	//edje_frametime_set(0.04);
-
 	if(strcmp(plugin_uri, CHIMAERA_SIMULATOR_URI))
 		return NULL;
 
@@ -285,7 +291,8 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	if(descriptor == &simulator_ui) // load X11 UI?
 	{
-		fprintf(stdout, "%s: using X11 UI\n", descriptor->URI);
+		ecore_evas_init();
+		edje_init();
 
 		ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent,
 			0, 0, ui->w, ui->h);
@@ -308,6 +315,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	ui->theme = edje_object_add(ui->e);
 	edje_object_file_set(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI"/theme");
+	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_DEL, _delete, ui);
 	const char *unit_width = edje_object_data_get(ui->theme, "unit_width");
 	const char *unit_height = edje_object_data_get(ui->theme, "unit_height");
 	const char *border_size = edje_object_data_get(ui->theme, "border_size");
@@ -358,18 +366,18 @@ cleanup(LV2UI_Handle handle)
 	if(ui)
 	{
 		if(ui->ee) // X11 UI
+		{
 			ecore_evas_hide(ui->ee);
 
-		evas_object_del(ui->theme);
+			evas_object_del(ui->theme);
 
-		if(ui->ee) // X11 UI
-			ecore_evas_free(ui->ee);
+			//ecore_evas_free(ui->ee);
+			//edje_shutdown();
+			//ecore_evas_shutdown();
+		}
 		
 		free(ui);
 	}
-
-	edje_shutdown();
-	ecore_evas_shutdown();
 }
 
 static void
