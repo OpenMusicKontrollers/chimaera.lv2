@@ -23,6 +23,7 @@
 @prefix atom:	<http://lv2plug.in/ns/ext/atom#> .
 @prefix midi:	<http://lv2plug.in/ns/ext/midi#> .
 @prefix work: <http://lv2plug.in/ns/ext/worker#> .
+@prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
 @prefix osc:	<http://opensoundcontrol.org#> .
 @prefix lic:	<http://opensource.org/licenses/> .
@@ -295,16 +296,22 @@ chim:injector
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
 	] .
-
-# simulator UI
-chim:simulator_ui
-	a ui:X11UI ;
-	lv2:requiredFeature ui:idleInterface ;
-  lv2:optionalFeature ui:noUserResize ;
-  lv2:extensionData ui:idleInterface, ui:showInterface .
-
+		
+# Simulator UI
 chim:simulator_eo
 	a ui:EoUI .
+chim:simulator_ui
+	a ui:UI ;
+	lv2:requiredFeature ui:idleInterface ;
+  lv2:extensionData ui:idleInterface, ui:showInterface .
+chim:simulator_x11
+	a ui:X11UI ;
+	lv2:requiredFeature ui:idleInterface ;
+	lv2:optionalFeature ui:resize ;
+  lv2:extensionData ui:idleInterface .
+chim:simulator_kx
+	a kx:Widget ;
+	lv2:requiredFeature kx:Host .
 
 # Simulator Plugin
 chim:simulator
@@ -355,25 +362,41 @@ chim:simulator
 		lv2:name "Event Output" ;
 	] .
 
-# Visualizer UI
-chim:visualizer_ui
-	a ui:X11UI ;
-	ui:portNotification [
-		ui:plugin chim:visualizer ;
-		lv2:symbol "event_in" ;
-		ui:protocol atom:eventTransfer ;
-	] ;
-	lv2:requiredFeature ui:idleInterface ;
-  lv2:optionalFeature ui:noUserResize ;
-  lv2:extensionData ui:idleInterface, ui:showInterface .
-
+# Simulator UI
 chim:visualizer_eo
 	a ui:EoUI ;
 	ui:portNotification [
 		ui:plugin chim:visualizer ;
-		lv2:symbol "event_in" ;
+		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] .
+chim:visualizer_ui
+	a ui:UI ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "notify" ;
+		ui:protocol atom:eventTransfer ;
+	] ;
+	lv2:requiredFeature ui:idleInterface ;
+  lv2:extensionData ui:idleInterface, ui:showInterface .
+chim:visualizer_x11
+	a ui:X11UI ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "notify" ;
+		ui:protocol atom:eventTransfer ;
+	] ;
+	lv2:requiredFeature ui:idleInterface ;
+	lv2:optionalFeature ui:resize ;
+  lv2:extensionData ui:idleInterface .
+chim:visualizer_kx
+	a kx:Widget ;
+	ui:portNotification [
+		ui:plugin chim:visualizer ;
+		lv2:symbol "notify" ;
+		ui:protocol atom:eventTransfer ;
+	] ;
+	lv2:requiredFeature kx:Host .
 
 # Visualizer Plugin
 chim:visualizer
@@ -395,7 +418,7 @@ chim:visualizer
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
 	] , [
-	# input control port
+	# input control ports
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 1 ;
@@ -414,6 +437,26 @@ chim:visualizer
 		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
 		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
 		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 2 ;
+		lv2:symbol "fps" ;
+		lv2:name "FPS" ;
+		lv2:default 30 ;
+		lv2:minimum 10 ;
+		lv2:maximum 60 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	# output notify port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports chim:Event ;
+		atom:supports chim:Dump ;
+		lv2:index 3 ;
+		lv2:symbol "notify" ;
+		lv2:name "Notify" ;
 	] .
 
 # Control Plugin

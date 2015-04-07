@@ -25,12 +25,20 @@ lv2ui_descriptor(uint32_t index)
 		case 0:
 			return &simulator_eo;
 		case 1:
-			return &visualizer_eo;
-
-		case 2:
 			return &simulator_ui;
+		case 2:
+			return &simulator_x11;
 		case 3:
+			return &simulator_kx;
+
+		case 4:
+			return &visualizer_eo;
+		case 5:
 			return &visualizer_ui;
+		case 6:
+			return &visualizer_x11;
+		case 7:
+			return &visualizer_kx;
 
 		default:
 			return NULL;

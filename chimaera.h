@@ -88,16 +88,24 @@ const LV2_Descriptor injector;
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
 #	define CHIMAERA_SIMULATOR_EO_URI	CHIMAERA_URI"#simulator_eo"
-#	define CHIMAERA_VISUALIZER_EO_URI	CHIMAERA_URI"#visualizer_eo"
-
 #	define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
+#	define CHIMAERA_SIMULATOR_X11_URI	CHIMAERA_URI"#simulator_x11"
+#	define CHIMAERA_SIMULATOR_KX_URI	CHIMAERA_URI"#simulator_kx"
+
+#	define CHIMAERA_VISUALIZER_EO_URI	CHIMAERA_URI"#visualizer_eo"
 #	define CHIMAERA_VISUALIZER_UI_URI	CHIMAERA_URI"#visualizer_ui"
+#	define CHIMAERA_VISUALIZER_X11_URI	CHIMAERA_URI"#visualizer_x11"
+#	define CHIMAERA_VISUALIZER_KX_URI	CHIMAERA_URI"#visualizer_kx"
 
 const LV2UI_Descriptor simulator_eo;
-const LV2UI_Descriptor visualizer_eo;
-
 const LV2UI_Descriptor simulator_ui;
+const LV2UI_Descriptor simulator_x11;
+const LV2UI_Descriptor simulator_kx;
+
+const LV2UI_Descriptor visualizer_eo;
 const LV2UI_Descriptor visualizer_ui;
+const LV2UI_Descriptor visualizer_x11;
+const LV2UI_Descriptor visualizer_kx;
 #endif
 
 // bundle enums and structs

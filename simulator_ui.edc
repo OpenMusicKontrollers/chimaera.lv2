@@ -1,12 +1,24 @@
 /*
  * Copyright (c) 2015 Hanspeter Portner (dev@open-music-kontrollers.ch)
- * 
- * This GUI theme and its accompanying resources are released under a
- * Creative Commons Attribution Non-Commercial Share-Alike License 3.0
+ *
+ * This is free software: you can redistribute it and/or modify
+ * it under the terms of the Artistic License 2.0 as published by
+ * The Perl Foundation.
+ *
+ * This source is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * Artistic License 2.0 for more details.
+ *
+ * You should have received a copy of the Artistic License 2.0
+ * along the source as a COPYING file. If not, obtain it from
+ * http://www.perlfoundation.org/artistic_license_2_0.
  */
 
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_SIMULATOR_UI_URI	CHIMAERA_URI"#simulator_ui"
+
+#define RATIO (142/92)
 
 images {
 	image: "48.png" COMP;
@@ -22,94 +34,57 @@ images {
 group {
 	name: CHIMAERA_SIMULATOR_UI_URI"/theme";
 
-	data {
-		item: "unit_width" "142";
-		item: "unit_height" "92";
-		item: "border_size" "12";
-	}
-
 	parts {
-		part {
-			name: "bg";
-			type: RECT;
-			mouse_events: 0;
-			description {
-				state: "default" 0.0;
-				color: 48 48 48 255;
-			}
-		}
-		part {
-			name: "encapsulation";
-			type: IMAGE;
-			mouse_events: 0;
-			description {
-				state: "default" 0.0;
-				image {
-					normal: "encapsulation.png";
-					border: 12 12 12 12;
-					middle: NONE;
-					scale_hint: STATIC;
-				}
-			}
-		}
-		part {
-			name: "logo";
-			type: IMAGE;
-			mouse_events: 0;
-			description {
-				state: "default" 0.0;
-				rel1.relative: 1.0 1.0;
-				rel1.offset: -104 -104;
-				rel2.relative: 1.0 1.0;
-				aspect: 1 1;
-				aspect_preference: BOTH;
-				image.normal: "omk_logo_256x256.png";
-				color: 255 255 255 16;
-			}
-		}
 		part {
 			name: "canvas";
 			type: IMAGE;
 			mouse_events: 1;
 			description {
 				state: "default" 0.0;
-				rel1.offset: 12 12;
-				rel2.offset: -12 -12;
+				aspect_preference: BOTH;
+				aspect: 3*RATIO 3*RATIO;
 				image.normal: "48.png";
 			}
 			description {
 				state: "default" 0.1;
 				inherit: "default" 0.0;
+				aspect: 4*RATIO 4*RATIO;
 				image.normal: "64.png";
 			}
 			description {
 				state: "default" 0.2;
 				inherit: "default" 0.0;
+				aspect: 5*RATIO 5*RATIO;
 				image.normal: "80.png";
 			}
 			description {
 				state: "default" 0.3;
 				inherit: "default" 0.0;
+				aspect: 6*RATIO 6*RATIO;
 				image.normal: "96.png";
 			}
 			description {
 				state: "default" 0.4;
 				inherit: "default" 0.0;
+				aspect: 7*RATIO 7*RATIO;
 				image.normal: "112.png";
 			}
 			description {
 				state: "default" 0.5;
 				inherit: "default" 0.0;
+				aspect: 8*RATIO 8*RATIO;
 				image.normal: "128.png";
 			}
 			description {
 				state: "default" 0.6;
 				inherit: "default" 0.0;
+				aspect: 9*RATIO 9*RATIO;
 				image.normal: "144.png";
 			}
 			description {
 				state: "default" 0.7;
 				inherit: "default" 0.0;
+				aspect: 10*RATIO 10*RATIO;
 				image.normal: "160.png";
 			}
 		}

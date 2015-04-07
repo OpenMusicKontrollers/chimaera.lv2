@@ -25,7 +25,16 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	const LV2_Atom_Sequence *event_in;
+	LV2_Atom_Sequence *notify;
 	const float *sensors;
+	const float *fps;
+
+	LV2_URID_Map *map;
+	LV2_Atom_Forge forge;
+
+	uint32_t rate;
+	uint32_t cnt;
+	uint32_t thresh;
 };
 
 static LV2_Handle
@@ -36,6 +45,21 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	handle_t *handle = calloc(1, sizeof(handle_t));
 	if(!handle)
 		return NULL;
+	
+	for(i=0; features[i]; i++)
+		if(!strcmp(features[i]->URI, LV2_URID__map))
+			handle->map = (LV2_URID_Map *)features[i]->data;
+	
+	if(!handle->map)
+	{
+		fprintf(stderr, "%s: Host does not support urid:map\n", descriptor->URI);
+		free(handle);
+		return NULL;
+	}
+
+	lv2_atom_forge_init(&handle->forge, handle->map);	
+
+	handle->rate = rate;
 
 	return handle;
 }
@@ -53,6 +77,12 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 		case 1:
 			handle->sensors = (const float *)data;
 			break;
+		case 2:
+			handle->fps = (const float *)data;
+			break;
+		case 3:
+			handle->notify = (LV2_Atom_Sequence *)data;
+			break;
 		default:
 			break;
 	}
@@ -62,14 +92,33 @@ static void
 activate(LV2_Handle instance)
 {
 	handle_t *handle = (handle_t *)instance;
-	//nothing
+
+	handle->cnt = 0;
 }
 
 static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
-	//nothing, really
+
+	// update threshold
+	handle->thresh = handle->rate / *handle->fps;
+
+	if( (handle->cnt += nsamples) >= handle->thresh)
+	{
+		uint32_t size = sizeof(LV2_Atom) + handle->event_in->atom.size;
+		memcpy(handle->notify, handle->event_in, size);
+
+		handle->cnt = 0;
+	}
+	else
+	{
+		LV2_Atom_Sequence *seq = handle->notify;
+		seq->atom.size = sizeof(LV2_Atom_Sequence_Body);
+		seq->atom.type = handle->forge.Sequence;
+		seq->body.unit = 0;
+		seq->body.pad = 0;
+	}
 }
 
 static void

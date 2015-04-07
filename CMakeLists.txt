@@ -6,6 +6,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/libosc)
 include_directories(${PROJECT_SOURCE_DIR}/libosc_stream)
 include_directories(${PROJECT_SOURCE_DIR}/inlist)
+include_directories(${PROJECT_SOURCE_DIR}/eo_ui.lv2)
 
 set(DEST lib/lv2/chimaera.lv2)
 set(LIB_EXT ".so")
@@ -63,9 +64,13 @@ install(FILES ${PROJECT_BINARY_DIR}/manifest.ttl DESTINATION ${DEST})
 install(FILES ${PROJECT_SOURCE_DIR}/chimaera.ttl DESTINATION ${DEST})
 
 if(CHIMAERA_UI_PLUGINS)
-	pkg_search_module(EDJE REQUIRED edje>=1.12)
-	include_directories(${EDJE_INCLUDE_DIRS})
-	set(LIBS_UI ${LIBS_UI} ${EDJE_LDFLAGS})
+	pkg_search_module(ELM REQUIRED elementary>=1.8)
+	include_directories(${ELM_INCLUDE_DIRS})
+	set(LIBS_UI ${LIBS_UI} ${ELM_LDFLAGS})
+
+	if((${ELM_VERSION} VERSION_EQUAL "1.13.0") OR (${ELM_VERSION} VERSION_GREATER "1.13.0"))
+		add_definitions("-DELM_HAS_FAKE")
+	endif()
 
 	add_library(chimaera_ui MODULE
 		chimaera_ui.c

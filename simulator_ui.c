@@ -21,9 +21,13 @@
 #include <Ecore_Evas.h>
 #include <Edje.h>
 
+#include <lv2_eo_ui.h>
+
 typedef struct _UI UI;
 
 struct _UI {
+	eo_ui_t eoui;
+
 	LV2_URID_Map *map;
 	struct {
 		LV2_URID event_transfer;
@@ -32,103 +36,24 @@ struct _UI {
 
 	LV2UI_Write_Function write_function;
 	LV2UI_Controller controller;
-	LV2UI_Resize *resize;
 
 	chimaera_event_t cev;
+	
+	char theme_path[512];
 
 	int units;
-
-	int uw, uh, bs;
-	int w, h;
-	Ecore_Evas *ee;
-	Evas *e;
 	Evas_Object *theme;
 };
-
-// Idle interface
-static int
-idle_cb(LV2UI_Handle handle)
-{
-	UI *ui = handle;
-
-	if(!ui)
-		return -1;
-
-	ecore_main_loop_iterate();
-	
-	return 0;
-}
-
-static const LV2UI_Idle_Interface idle_ext = {
-	.idle = idle_cb
-};
-
-// Show Interface
-static int
-_show_cb(LV2UI_Handle handle)
-{
-	UI *ui = handle;
-
-	if(!ui)
-		return -1;
-
-	if(ui->ee)
-		ecore_evas_show(ui->ee);
-
-	return 0;
-}
-
-static int
-_hide_cb(LV2UI_Handle handle)
-{
-	UI *ui = handle;
-
-	if(!ui)
-		return -1;
-
-	if(ui->ee)
-		ecore_evas_hide(ui->ee);
-
-	return 0;
-}
-
-static const LV2UI_Show_Interface show_ext = {
-	.show = _show_cb,
-	.hide = _hide_cb
-};
-
-// Resize Interface
-static int
-resize_cb(LV2UI_Feature_Handle handle, int w, int h)
-{
-	UI *ui = handle;
-
-	if(!ui)
-		return -1;
-
-	ui->w = w;
-	ui->h = h;
-
-	if(ui->ee)
-		ecore_evas_resize(ui->ee, ui->w, ui->h);
-
-	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
-		ui->w, ui->h);
-	evas_object_size_hint_min_set(ui->theme, ui->w, ui->h);
-	evas_object_resize(ui->theme, ui->w, ui->h);
-  
-  return 0;
-}
 	
 static inline void
 _write_event(UI *ui, chimaera_event_t *cev)
 {
-	uint8_t buf[256];
+	uint8_t buf[512];
 
-	lv2_atom_forge_set_buffer(&ui->cforge.forge, buf, 256);
+	lv2_atom_forge_set_buffer(&ui->cforge.forge, buf, 512);
 	chimaera_event_forge(&ui->cforge, cev);
 
-	ui->write_function(ui->controller, 0, ui->cforge.forge.size,
+	ui->write_function(ui->controller, 0, ui->cforge.forge.offset,
 		ui->uris.event_transfer, buf);
 }
 
@@ -136,8 +61,8 @@ static inline void
 _get_pos(UI *ui, Evas_Coord_Point *coord, float *dx, float *dz, float *dw)
 {
 	Evas_Coord x, y, w, h;
-	const Evas_Object *canvas = edje_object_part_object_get(ui->theme, "canvas");
-
+	Evas_Object *edj = elm_layout_edje_get(ui->theme);
+	const Evas_Object *canvas = edje_object_part_object_get(edj, "canvas");
 	evas_object_geometry_get(canvas, &x, &y, &w, &h);
 
 	*dx = (coord->x - x) / (float)w;
@@ -164,8 +89,9 @@ _mouse_down(void *data, Evas *e, Evas_Object *obj, void *event_info)
 
 	_get_pos(ui, &ev->canvas, &x, &z, &w);
 
-	edje_object_part_drag_value_set(ui->theme, "magnet", x, 0.0);
-	edje_object_part_drag_size_set(ui->theme, "magnet", w, z);
+	Evas_Object *edj = elm_layout_edje_get(ui->theme);
+	edje_object_part_drag_value_set(edj, "magnet", x, 0.0);
+	edje_object_part_drag_size_set(edj, "magnet", w, z);
 
 	chimaera_event_t *cev = &ui->cev;
 
@@ -207,8 +133,9 @@ _mouse_move(void *data, Evas *e, Evas_Object *obj, void *event_info)
 
 	_get_pos(ui, &ev->cur.canvas, &x, &z, &w);
 
-	edje_object_part_drag_value_set(ui->theme, "magnet", x, 0.0);
-	edje_object_part_drag_size_set(ui->theme, "magnet", w, z);
+	Evas_Object *edj = elm_layout_edje_get(ui->theme);
+	edje_object_part_drag_value_set(edj, "magnet", x, 0.0);
+	edje_object_part_drag_size_set(edj, "magnet", w, z);
 	
 	chimaera_event_t *cev = &ui->cev;
 
@@ -226,7 +153,7 @@ _mouse_in(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
 	UI *ui = data;
 		
-	edje_object_signal_emit(ui->theme, "magnet,show", CHIMAERA_SIMULATOR_UI_URI);
+	elm_layout_signal_emit(ui->theme, "magnet,show", CHIMAERA_SIMULATOR_UI_URI);
 }
 
 static void
@@ -234,15 +161,29 @@ _mouse_out(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
 	UI *ui = data;
 	
-	edje_object_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
+	elm_layout_signal_emit(ui->theme, "magnet,hide", CHIMAERA_SIMULATOR_UI_URI);
 }
 
-static void
-_delete(void *data, Evas *e, Evas_Object *obj, void *event_info)
+static Evas_Object *
+_content_get(eo_ui_t *eoui)
 {
-	UI *ui = data;
+	UI *ui = (void *)eoui - offsetof(UI, eoui);
 
-	//nothing
+	ui->theme = elm_layout_add(eoui->win);
+	elm_layout_file_set(ui->theme, ui->theme_path, CHIMAERA_SIMULATOR_UI_URI"/theme");
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_IN, _mouse_in, ui);
+	evas_object_event_callback_add(ui->theme,
+		EVAS_CALLBACK_MOUSE_OUT, _mouse_out, ui);
+	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
+
+	return ui->theme;
 }
 
 static LV2UI_Handle
@@ -255,27 +196,36 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	if(strcmp(plugin_uri, CHIMAERA_SIMULATOR_URI))
 		return NULL;
 
+	eo_ui_driver_t driver;
+	if(descriptor == &simulator_eo)
+		driver = EO_UI_DRIVER_EO;
+	else if(descriptor == &simulator_ui)
+		driver = EO_UI_DRIVER_UI;
+	else if(descriptor == &simulator_x11)
+		driver = EO_UI_DRIVER_X11;
+	else if(descriptor == &simulator_kx)
+		driver = EO_UI_DRIVER_KX;
+	else
+		return NULL;
+
 	UI *ui = calloc(1, sizeof(UI));
 	if(!ui)
 		return NULL;
 
+	eo_ui_t *eoui = &ui->eoui;
+	eoui->driver = driver;
+	eoui->content_get = _content_get;
+	eoui->w = 1280,
+	eoui->h = 720;
+
 	ui->units = 3;
-	ui->w = 10;
-	ui->h = 10;
 	ui->write_function = write_function;
 	ui->controller = controller;
-
-	void *parent = NULL;
-	ui->resize = NULL;
 	
 	int i, j;
 	for(i=0; features[i]; i++)
 	{
-		if(!strcmp(features[i]->URI, LV2_UI__parent))
-			parent = features[i]->data;
-		else if (!strcmp(features[i]->URI, LV2_UI__resize))
-			ui->resize = (LV2UI_Resize *)features[i]->data;
-		else if(!strcmp(features[i]->URI, LV2_URID__map))
+		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;
   }
 
@@ -289,71 +239,13 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
 
-	if(descriptor == &simulator_ui) // load X11 UI?
+	sprintf(ui->theme_path, "%s/chimaera_ui.edj", bundle_path);
+	if(eoui_instantiate(eoui, descriptor, plugin_uri, bundle_path, write_function,
+		controller, widget, features))
 	{
-		ecore_evas_init();
-		edje_init();
-
-		ui->ee = ecore_evas_gl_x11_new(NULL, (Ecore_X_Window)parent,
-			0, 0, ui->w, ui->h);
-		if(!ui->ee)
-			ui->ee = ecore_evas_software_x11_new(NULL, (Ecore_X_Window)parent,
-				0, 0, ui->w, ui->h);
-		if(!ui->ee)
-			printf("could not start evas\n");
-		ui->e = ecore_evas_get(ui->ee);
-		ecore_evas_show(ui->ee);
+		free(ui);
+		return NULL;
 	}
-	else if(descriptor == &simulator_eo) // load Eo UI?
-	{
-		ui->ee = NULL;
-		ui->e = evas_object_evas_get((Evas_Object *)parent);
-	}
-
-	char buf[512];
-	sprintf(buf, "%s/chimaera_ui.edj", bundle_path);
-
-	ui->theme = edje_object_add(ui->e);
-	edje_object_file_set(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI"/theme");
-	evas_object_event_callback_add(ui->theme, EVAS_CALLBACK_DEL, _delete, ui);
-	const char *unit_width = edje_object_data_get(ui->theme, "unit_width");
-	const char *unit_height = edje_object_data_get(ui->theme, "unit_height");
-	const char *border_size = edje_object_data_get(ui->theme, "border_size");
-	evas_object_size_hint_weight_set(ui->theme, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-	evas_object_size_hint_align_set(ui->theme, EVAS_HINT_FILL, EVAS_HINT_FILL);
-	evas_object_size_hint_min_set(ui->theme, ui->w, ui->h);
-	evas_object_size_hint_aspect_set(ui->theme, EVAS_ASPECT_CONTROL_BOTH,
-		ui->w, ui->h);
-	evas_object_event_callback_add(ui->theme,
-		EVAS_CALLBACK_MOUSE_DOWN, _mouse_down, ui);
-	evas_object_event_callback_add(ui->theme,
-		EVAS_CALLBACK_MOUSE_UP, _mouse_up, ui);
-	evas_object_event_callback_add(ui->theme,
-		EVAS_CALLBACK_MOUSE_MOVE, _mouse_move, ui);
-	evas_object_event_callback_add(ui->theme,
-		EVAS_CALLBACK_MOUSE_IN, _mouse_in, ui);
-	evas_object_event_callback_add(ui->theme,
-		EVAS_CALLBACK_MOUSE_OUT, _mouse_out, ui);
-	evas_object_pointer_mode_set(ui->theme, EVAS_OBJECT_POINTER_MODE_NOGRAB);
-	evas_object_resize(ui->theme, ui->w, ui->h);
-	evas_object_show(ui->theme);
-
-	ui->uw = atoi(unit_width);
-	ui->uh = atoi(unit_height);
-	ui->bs = atoi(border_size);
-
-	ui->w = ui->uw*ui->units + 2*ui->bs;
-	ui->h = ui->uh + 2*ui->bs;
-
-	resize_cb(ui, ui->w, ui->h);
-
-	if(ui->resize)
-    ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
-	
-	if(ui->ee) // X11 UI
-		*(Evas_Object **)widget = NULL;
-	else // Eo UI
-		*(Evas_Object **)widget = ui->theme;
 
 	return ui;
 }
@@ -362,22 +254,9 @@ static void
 cleanup(LV2UI_Handle handle)
 {
 	UI *ui = handle;
-	
-	if(ui)
-	{
-		if(ui->ee) // X11 UI
-		{
-			ecore_evas_hide(ui->ee);
 
-			evas_object_del(ui->theme);
-
-			//ecore_evas_free(ui->ee);
-			//edje_shutdown();
-			//ecore_evas_shutdown();
-		}
-		
-		free(ui);
-	}
+	eoui_cleanup(&ui->eoui);
+	free(ui);
 }
 
 static void
@@ -392,29 +271,10 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 		int sensors = *(float *)buf;
 		ui->units = sensors / 16;
 
-		ui->w = ui->uw*ui->units + 2*ui->bs;
-		ui->h = ui->uh + 2*ui->bs;
-
-		resize_cb(ui, ui->w, ui->h);
-
 		char buf [16];
 		sprintf(buf, "%i", sensors);
-		edje_object_signal_emit(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI);
-
-		if(ui->resize)
-			ui->resize->ui_resize(ui->resize->handle, ui->w, ui->h);
+		elm_layout_signal_emit(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI);
 	}
-}
-
-static const void *
-extension_data(const char *uri)
-{
-	if(!strcmp(uri, LV2_UI__idleInterface))
-		return &idle_ext;
-	else if(!strcmp(uri, LV2_UI__showInterface))
-		return &show_ext;
-		
-	return NULL;
 }
 
 const LV2UI_Descriptor simulator_eo = {
@@ -422,7 +282,7 @@ const LV2UI_Descriptor simulator_eo = {
 	.instantiate		= instantiate,
 	.cleanup				= cleanup,
 	.port_event			= port_event,
-	.extension_data	= NULL
+	.extension_data	= eoui_eo_extension_data
 };
 
 const LV2UI_Descriptor simulator_ui = {
@@ -430,5 +290,21 @@ const LV2UI_Descriptor simulator_ui = {
 	.instantiate		= instantiate,
 	.cleanup				= cleanup,
 	.port_event			= port_event,
-	.extension_data	= extension_data
+	.extension_data	= eoui_ui_extension_data
+};
+
+const LV2UI_Descriptor simulator_x11 = {
+	.URI						= CHIMAERA_SIMULATOR_X11_URI,
+	.instantiate		= instantiate,
+	.cleanup				= cleanup,
+	.port_event			= port_event,
+	.extension_data	= eoui_x11_extension_data
+};
+
+const LV2UI_Descriptor simulator_kx = {
+	.URI						= CHIMAERA_SIMULATOR_KX_URI,
+	.instantiate		= instantiate,
+	.cleanup				= cleanup,
+	.port_event			= port_event,
+	.extension_data	= eoui_kx_extension_data
 };
