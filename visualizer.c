@@ -30,11 +30,14 @@ struct _handle_t {
 	const float *fps;
 
 	LV2_URID_Map *map;
-	LV2_Atom_Forge forge;
+	chimaera_forge_t cforge;
 
 	uint32_t rate;
 	uint32_t cnt;
 	uint32_t thresh;
+
+	int dump_waiting;
+	int event_waiting;
 };
 
 static LV2_Handle
@@ -57,7 +60,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		return NULL;
 	}
 
-	lv2_atom_forge_init(&handle->forge, handle->map);	
+	chimaera_forge_init(&handle->cforge, handle->map);
 
 	handle->rate = rate;
 
@@ -101,24 +104,62 @@ run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	// update threshold
+	// update sample count threshold
 	handle->thresh = handle->rate / *handle->fps;
 
-	if( (handle->cnt += nsamples) >= handle->thresh)
+	// check whether threshold has been reached
+	if(handle->cnt >= handle->thresh)
 	{
-		uint32_t size = sizeof(LV2_Atom) + handle->event_in->atom.size;
-		memcpy(handle->notify, handle->event_in, size);
-
+		handle->dump_waiting = 1;
+		handle->event_waiting = 1;
 		handle->cnt = 0;
 	}
-	else
+
+	// prepare forge
+	const uint32_t capacity = handle->notify->atom.size;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->notify, capacity);
+	lv2_atom_forge_sequence_head(forge, &frame, 0);
+
+	// read events
+	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
-		LV2_Atom_Sequence *seq = handle->notify;
-		seq->atom.size = sizeof(LV2_Atom_Sequence_Body);
-		seq->atom.type = handle->forge.Sequence;
-		seq->body.unit = 0;
-		seq->body.pad = 0;
+		const LV2_Atom *atom = &ev->body;
+
+		if(chimaera_event_check_type(&handle->cforge, atom))
+		{
+			chimaera_event_t cev;
+			chimaera_event_deforge(&handle->cforge, atom, &cev);
+
+			if(  (cev.state == CHIMAERA_STATE_SET)
+				&& !handle->event_waiting)
+			{
+				continue;
+			}
+
+			lv2_atom_forge_frame_time(forge, ev->time.frames);
+			lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
+			lv2_atom_forge_pad(forge, atom->size);
+		}
+		else if(chimaera_dump_check_type(&handle->cforge, atom))
+		{
+			if(handle->dump_waiting)
+			{
+				lv2_atom_forge_frame_time(forge, ev->time.frames);
+				lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
+				lv2_atom_forge_pad(forge, atom->size);
+
+				handle->dump_waiting = 0;
+			}
+		}
 	}
+	lv2_atom_forge_pop(forge, &frame);
+
+	// increase sample counter
+	handle->cnt += nsamples;
+
+	handle->event_waiting = 0;
 }
 
 static void

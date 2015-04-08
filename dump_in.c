@@ -20,6 +20,7 @@
 
 #include <chimaera.h>
 #include <osc.h>
+#include <lv2_osc.h>
 
 typedef struct _handle_t handle_t;
 

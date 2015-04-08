@@ -24,6 +24,12 @@
 #include <lv2_eo_ui.h>
 
 typedef struct _UI UI;
+typedef struct _ref_t ref_t;
+
+struct _ref_t {
+	chimaera_event_t cev;
+	Evas_Object *obj;
+};
 
 struct _UI {
 	eo_ui_t eoui;
@@ -38,6 +44,8 @@ struct _UI {
 	LV2UI_Controller controller;
 
 	chimaera_dump_t dump;
+	chimaera_dict_t dict [CHIMAERA_DICT_SIZE];
+	ref_t ref [CHIMAERA_DICT_SIZE];
 
 	char theme_path[512];
 
@@ -115,7 +123,19 @@ _dump_update(UI *ui)
 static void
 _event_update(UI *ui)
 {
-	//TODO
+	int x, y, w, h;
+	evas_object_geometry_get(ui->tab, &x, &y, &w, &h);
+
+	uint32_t sid;
+	ref_t *ref;
+	CHIMAERA_DICT_FOREACH(ui->dict, sid, ref)
+	{
+		int sign = ref->cev.pid == 0x100 ? 1 : -1;
+		int abs_x = x + w * ref->cev.x - 12;
+		int abs_y = y + h/2 + (h/8 + 3*h/8 * ref->cev.z) * sign  - 12;
+
+		evas_object_move(ref->obj, abs_x, abs_y);
+	}
 }
 
 static Evas_Object *
@@ -128,6 +148,17 @@ _content_get(eo_ui_t *eoui)
 	elm_table_align_set(ui->tab, 0.5, 0.5);
 
 	_dump_fill(ui);
+
+	// create indicators
+	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+	{
+		ref_t *ref = &ui->ref[i];
+
+		ref->obj = elm_layout_add(ui->tab);
+		elm_layout_file_set(ref->obj, ui->theme_path,
+			CHIMAERA_VISUALIZER_UI_URI"/indicator");
+		evas_object_resize(ref->obj, 24, 24);
+	}
 
 	return ui->tab;
 }
@@ -184,6 +215,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
+	CHIMAERA_DICT_INIT(ui->dict, ui->ref);
 
 	sprintf(ui->theme_path, "%s/chimaera_ui.edj", bundle_path);
 	if(eoui_instantiate(eoui, descriptor, plugin_uri, bundle_path, write_function,
@@ -211,7 +243,6 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	// do nothing
 	if(i == 1)
 	{
 		uint32_t sensors = *(float *)buf;
@@ -229,6 +260,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 		if(chimaera_dump_check_type(&ui->cforge, atom))
 		{
 			chimaera_dump_deforge(&ui->cforge, buf, &ui->dump);
+
 			_dump_update(ui);
 		}
 		else if(chimaera_event_check_type(&ui->cforge, atom))
@@ -236,6 +268,75 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 			chimaera_event_t cev;
 
 			chimaera_event_deforge(&ui->cforge, buf, &cev);
+
+			switch(cev.state)
+			{
+				case CHIMAERA_STATE_ON:
+				{
+					ref_t *ref = chimaera_dict_add(ui->dict, cev.sid);
+					if(!ref)
+						break;
+
+					// clone event data
+					ref->cev.state = cev.state;
+					ref->cev.sid = cev.sid;
+					ref->cev.gid = cev.gid;
+					ref->cev.pid = cev.pid;
+					ref->cev.x = cev.x;
+					ref->cev.z = cev.z;
+					ref->cev.X = cev.X;
+					ref->cev.Z = cev.Z;
+
+					char buf [64];
+					sprintf(buf, "%i/%i", ref->cev.sid, ref->cev.gid);
+					elm_object_part_text_set(ref->obj, "elm.text", buf);
+					evas_object_show(ref->obj);
+
+					break;
+				}
+				case CHIMAERA_STATE_OFF:
+				{
+					ref_t *ref = chimaera_dict_ref(ui->dict, cev.sid);
+					if(!ref)
+						break;
+
+					evas_object_hide(ref->obj);
+					chimaera_dict_del(ui->dict, cev.sid);
+
+					break;
+				}
+				case CHIMAERA_STATE_SET:
+				{
+					ref_t *ref = chimaera_dict_ref(ui->dict, cev.sid);
+					if(!ref)
+						break;
+
+					// clone event data
+					ref->cev.state = cev.state;
+					ref->cev.sid = cev.sid;
+					ref->cev.gid = cev.gid;
+					ref->cev.pid = cev.pid;
+					ref->cev.x = cev.x;
+					ref->cev.z = cev.z;
+					ref->cev.X = cev.X;
+					ref->cev.Z = cev.Z;
+
+					break;
+				}
+				case CHIMAERA_STATE_IDLE:
+				{
+					uint32_t sid;
+					ref_t *ref;
+					CHIMAERA_DICT_FOREACH(ui->dict, sid, ref)
+						evas_object_hide(ref->obj);
+					chimaera_dict_clear(ui->dict);
+
+					break;
+				}
+				case CHIMAERA_STATE_NONE:
+					break;
+			}
+
 			_event_update(ui);
 		}
 	}

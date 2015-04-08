@@ -30,8 +30,6 @@
 #include <lv2/lv2plug.in/ns/ext/worker/worker.h>
 #include <lv2/lv2plug.in/ns/extensions/ui/ui.h>
 
-#define LV2_OSC__OscEvent					"http://opensoundcontrol.org#OscEvent"
-
 // bundle uris
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
 
@@ -72,6 +70,7 @@
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_INJECTOR_URI			CHIMAERA_URI"#injector"
+#define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
 
 const LV2_Descriptor dummy_in;
 const LV2_Descriptor dump_in;
@@ -84,6 +83,7 @@ const LV2_Descriptor osc_out;
 const LV2_Descriptor simulator;
 const LV2_Descriptor visualizer;
 const LV2_Descriptor injector;
+const LV2_Descriptor comm;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
@@ -97,6 +97,11 @@ const LV2_Descriptor injector;
 #	define CHIMAERA_VISUALIZER_X11_URI	CHIMAERA_URI"#visualizer_x11"
 #	define CHIMAERA_VISUALIZER_KX_URI	CHIMAERA_URI"#visualizer_kx"
 
+#	define CHIMAERA_COMM_EO_URI				CHIMAERA_URI"#comm_eo"
+#	define CHIMAERA_COMM_UI_URI				CHIMAERA_URI"#comm_ui"
+#	define CHIMAERA_COMM_X11_URI			CHIMAERA_URI"#comm_x11"
+#	define CHIMAERA_COMM_KX_URI				CHIMAERA_URI"#comm_kx"
+
 const LV2UI_Descriptor simulator_eo;
 const LV2UI_Descriptor simulator_ui;
 const LV2UI_Descriptor simulator_x11;
@@ -106,6 +111,11 @@ const LV2UI_Descriptor visualizer_eo;
 const LV2UI_Descriptor visualizer_ui;
 const LV2UI_Descriptor visualizer_x11;
 const LV2UI_Descriptor visualizer_kx;
+
+const LV2UI_Descriptor comm_eo;
+const LV2UI_Descriptor comm_ui;
+const LV2UI_Descriptor comm_x11;
+const LV2UI_Descriptor comm_kx;
 #endif
 
 // bundle enums and structs

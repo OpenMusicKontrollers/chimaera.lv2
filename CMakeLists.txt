@@ -7,6 +7,8 @@ include_directories(${PROJECT_SOURCE_DIR}/libosc)
 include_directories(${PROJECT_SOURCE_DIR}/libosc_stream)
 include_directories(${PROJECT_SOURCE_DIR}/inlist)
 include_directories(${PROJECT_SOURCE_DIR}/eo_ui.lv2)
+include_directories(${PROJECT_SOURCE_DIR}/osc.lv2)
+include_directories(${PROJECT_SOURCE_DIR}/cjson)
 
 set(DEST lib/lv2/chimaera.lv2)
 set(LIB_EXT ".so")
@@ -37,6 +39,7 @@ add_library(chimaera MODULE
 	libosc_stream/osc_stream_udp.c
 	libosc_stream/osc_stream_tcp.c
 	libosc_stream/osc_stream_pipe.c
+	cjson/cJSON.c
 	dummy_in.c
 	dump_in.c
 	tuio2_in.c
@@ -45,6 +48,7 @@ add_library(chimaera MODULE
 	simulator.c
 	visualizer.c
 	injector.c
+	comm.c
 	control_out.c
 	midi_out.c
 	osc_out.c)
@@ -75,6 +79,7 @@ if(CHIMAERA_UI_PLUGINS)
 	add_library(chimaera_ui MODULE
 		chimaera_ui.c
 		simulator_ui.c
+		comm_ui.c
 		visualizer_ui.c)
 	target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_UI_PLUGINS)
 	if(CHIMAERA_FAST_DISPATCH)

@@ -20,6 +20,7 @@
 
 #include <chimaera.h>
 #include <osc.h>
+#include <lv2_osc.h>
 
 #define BUF_SIZE 2048
 
