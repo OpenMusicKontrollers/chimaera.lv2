@@ -61,12 +61,15 @@ struct _handle_t {
 
 	uv_loop_t *loop;
 
-	osc_stream_t data_stream;
+	osc_stream_driver_t data_driver;
+	osc_stream_t *data_stream;
 	uint8_t data_buf [BUF_SIZE];
 	LV2_Atom_Forge data_forge;
 	volatile int data_resolved;
 	volatile int data_connected;
 
+	osc_stream_driver_t comm_driver;
+	osc_stream_t *comm_stream;
 	osc_stream_t comm_stream;
 	uint8_t comm_buf [BUF_SIZE];
 	LV2_Atom_Forge comm_forge;
