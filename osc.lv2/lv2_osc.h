@@ -24,6 +24,7 @@
 #include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 #include <lv2/lv2plug.in/ns/ext/atom/atom.h>
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
+#include <lv2/lv2plug.in/ns/ext/midi/midi.h>
 
 #define LV2_OSC_PREFIX						"http://opensoundcontrol.org"
 
@@ -63,6 +64,8 @@ struct _osc_forge_t {
 		LV2_URID path;
 		LV2_URID format;
 		LV2_URID body;
+
+		LV2_URID midi;
 	} uris;
 };
 
@@ -78,6 +81,8 @@ osc_forge_init(osc_forge_t *oforge, LV2_URID_Map *map)
 	oforge->uris.path = map->map(map->handle, LV2_OSC__OscPath);
 	oforge->uris.format = map->map(map->handle, LV2_OSC__OscFormat);
 	oforge->uris.body = map->map(map->handle, LV2_OSC__OscBody);
+	
+	oforge->uris.midi = map->map(map->handle, LV2_MIDI__MidiEvent);
 
 	lv2_atom_forge_init(forge, map);
 }
@@ -206,6 +211,9 @@ osc_atom_bundle_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
 
 	uint64_t timestamp_body = timestamp ? timestamp->body : 1ULL;
 
+	if(!body)
+		return;
+
 	// iterate over tuple body
 	for(const LV2_Atom *itr = lv2_atom_tuple_begin(body);
 		!lv2_atom_tuple_is_end(LV2_ATOM_BODY(body), body->atom.size, itr);
@@ -226,11 +234,10 @@ osc_atom_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
 }
 
 static inline void
-osc_forge_bundle_push(osc_forge_t *oforge, LV2_Atom_Forge_Frame *obj_frame, 
-	LV2_Atom_Forge_Frame *tup_frame, uint64_t timestamp)
+osc_forge_bundle_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame,
+	uint64_t timestamp)
 {
-	LV2_Atom_Forge *forge = &oforge->forge;
-
 	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.bundle);
 	{
 		lv2_atom_forge_key(forge, oforge->uris.timestamp);
@@ -242,13 +249,125 @@ osc_forge_bundle_push(osc_forge_t *oforge, LV2_Atom_Forge_Frame *obj_frame,
 }
 
 static inline void
-osc_forge_bundle_pop(osc_forge_t *oforge, LV2_Atom_Forge_Frame *obj_frame, 
-	LV2_Atom_Forge_Frame *tup_frame)
+osc_forge_bundle_pop(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame)
 {
-	LV2_Atom_Forge *forge = &oforge->forge;
-
 	lv2_atom_forge_pop(forge, tup_frame);
 	lv2_atom_forge_pop(forge, obj_frame);
+}
+
+static inline void
+osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame,
+	const char *path, const char *fmt)
+{
+	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.message);
+	{
+		lv2_atom_forge_key(forge, oforge->uris.path);
+		lv2_atom_forge_string(forge, path, strlen(path));
+
+		lv2_atom_forge_key(forge, oforge->uris.format);
+		lv2_atom_forge_string(forge, fmt, strlen(fmt));
+
+		lv2_atom_forge_key(forge, oforge->uris.body);
+		lv2_atom_forge_tuple(forge, tup_frame);
+	}
+}
+
+static inline void
+osc_forge_message_pop(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame)
+{
+	lv2_atom_forge_pop(forge, tup_frame);
+	lv2_atom_forge_pop(forge, obj_frame);
+}
+	
+static inline void
+osc_forge_int32(osc_forge_t *oforge, LV2_Atom_Forge *forge, int32_t i)
+{
+	lv2_atom_forge_int(forge, i);
+}
+
+static inline void
+osc_forge_float(osc_forge_t *oforge, LV2_Atom_Forge *forge, float f)
+{
+	lv2_atom_forge_float(forge, f);
+}
+
+static inline void
+osc_forge_string(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
+{
+	lv2_atom_forge_string(forge, s, strlen(s));
+}
+
+static inline void
+osc_forge_symbol(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
+{
+	lv2_atom_forge_string(forge, s, strlen(s));
+}
+
+static inline void
+osc_forge_blob(osc_forge_t *oforge, LV2_Atom_Forge *forge, int32_t size, const uint8_t *b)
+{
+	lv2_atom_forge_atom(forge, size, forge->Chunk);
+	lv2_atom_forge_raw(forge, b, size);
+	lv2_atom_forge_pad(forge, size);
+}
+
+static inline void
+osc_forge_int64(osc_forge_t *oforge, LV2_Atom_Forge *forge, int64_t h)
+{
+	lv2_atom_forge_long(forge, h);
+}
+
+static inline void
+osc_forge_double(osc_forge_t *oforge, LV2_Atom_Forge *forge, double d)
+{
+	lv2_atom_forge_double(forge, d);
+}
+
+static inline void
+osc_forge_timestamp(osc_forge_t *oforge, LV2_Atom_Forge *forge, uint64_t t)
+{
+	lv2_atom_forge_long(forge, t);
+}
+
+static inline void
+osc_forge_char(osc_forge_t *oforge, LV2_Atom_Forge *forge, char c)
+{
+	lv2_atom_forge_int(forge, c);
+}
+
+static inline void
+osc_forge_midi(osc_forge_t *oforge, LV2_Atom_Forge *forge, const uint8_t *m)
+{
+	lv2_atom_forge_atom(forge, 4, oforge->uris.midi);
+	lv2_atom_forge_raw(forge, m, 4);
+	lv2_atom_forge_pad(forge, 4);
+}
+
+static inline void
+osc_forge_true(osc_forge_t *oforge, LV2_Atom_Forge *forge)
+{
+	lv2_atom_forge_bool(forge, 1);
+}
+
+static inline void
+osc_forge_false(osc_forge_t *oforge, LV2_Atom_Forge *forge)
+{
+	lv2_atom_forge_bool(forge, 0);
+}
+
+static inline void
+osc_forge_nil(osc_forge_t *oforge, LV2_Atom_Forge *forge)
+{
+	lv2_atom_forge_atom(forge, 0, 0);
+}
+
+static inline void
+osc_forge_bang(osc_forge_t *oforge, LV2_Atom_Forge *forge)
+{
+	lv2_atom_forge_float(forge, INFINITY);
 }
 
 static inline void
@@ -261,87 +380,68 @@ osc_forge_message_vararg(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	va_list args;
 	va_start(args, fmt);
 
-	lv2_atom_forge_object(forge, &obj_frame, 0, oforge->uris.message);
+	osc_forge_message_push(oforge, forge, &obj_frame, &tup_frame, path, fmt);
+
+	for(const char *type = fmt; *type; type++)
 	{
-		lv2_atom_forge_key(forge, oforge->uris.path);
-		lv2_atom_forge_string(forge, path, strlen(path));
-		
-		lv2_atom_forge_key(forge, oforge->uris.format);
-		lv2_atom_forge_string(forge, fmt, strlen(fmt));
-		
-		lv2_atom_forge_key(forge, oforge->uris.body);
-		lv2_atom_forge_tuple(forge, &tup_frame);
-
-		for(const char *type = fmt; *type; type++)
+		switch(*type)
 		{
-			switch(*type)
+			case 'i':
+				osc_forge_int32(oforge, forge, va_arg(args, int32_t));
+				break;
+			case 'f':
+				osc_forge_float(oforge, forge, (float)va_arg(args, double));
+				break;
+			case 's':
+				osc_forge_string(oforge, forge, va_arg(args, const char *));
+				break;
+			case 'S':
+				osc_forge_symbol(oforge, forge, va_arg(args, const char *));
+				break;
+			case 'b':
 			{
-				case 'i':
-					lv2_atom_forge_int(forge, va_arg(args, int32_t));
-					break;
-				case 'f':
-					lv2_atom_forge_float(forge, (float)va_arg(args, double));
-					break;
-				case 's':
-					// fall-through
-				case 'S':
-				{
-					const char *s = va_arg(args, const char *);
-					lv2_atom_forge_string(forge, s, strlen(s));
-					break;
-				}
-				case 'b':
-				{
-					int32_t size = va_arg(args, int32_t);
-					const uint8_t *b = va_arg(args, const uint8_t *);
-					lv2_atom_forge_atom(forge, size, forge->Chunk);
-					lv2_atom_forge_raw(forge, b, size);
-					lv2_atom_forge_pad(forge, size);
-					break;
-				}
-				
-				case 'h':
-					lv2_atom_forge_long(forge, va_arg(args, int64_t));
-					break;
-				case 'd':
-					lv2_atom_forge_double(forge, va_arg(args, double));
-					break;
-				case 't':
-					lv2_atom_forge_long(forge, va_arg(args, uint64_t));
-					break;
-				
-				case 'c':
-					lv2_atom_forge_int(forge, (char)va_arg(args, unsigned int));
-					break;
-				case 'm':
-				{
-					const uint8_t *m = va_arg(args, const uint8_t *);
-					lv2_atom_forge_atom(forge, 4, forge->Chunk);
-					lv2_atom_forge_raw(forge, m, 4);
-					lv2_atom_forge_pad(forge, 4);
-					break;
-				}
-				
-				case 'T':
-					lv2_atom_forge_bool(forge, 1);
-					break;
-				case 'F':
-					lv2_atom_forge_bool(forge, 0);
-					break;
-				case 'N':
-					lv2_atom_forge_atom(forge, 0, 0);
-					break;
-				case 'I':
-					lv2_atom_forge_float(forge, INFINITY);
-					break;
-
-				default:
-					break;
+				int32_t size = va_arg(args, int32_t);
+				const uint8_t *b = va_arg(args, const uint8_t *);
+				osc_forge_blob(oforge, forge, size, b);
+				break;
 			}
+			
+			case 'h':
+				osc_forge_int64(oforge, forge, va_arg(args, int64_t));
+				break;
+			case 'd':
+				osc_forge_double(oforge, forge, va_arg(args, double));
+				break;
+			case 't':
+				osc_forge_timestamp(oforge, forge, va_arg(args, uint64_t));
+				break;
+			
+			case 'c':
+				osc_forge_char(oforge, forge, (char)va_arg(args, unsigned int));
+				break;
+			case 'm':
+				osc_forge_midi(oforge, forge, va_arg(args, const uint8_t *));
+				break;
+			
+			case 'T':
+				osc_forge_true(oforge, forge);
+				break;
+			case 'F':
+				osc_forge_false(oforge, forge);
+				break;
+			case 'N':
+				osc_forge_nil(oforge, forge);
+				break;
+			case 'I':
+				osc_forge_bang(oforge, forge);
+				break;
+
+			default:
+				break;
 		}
-		lv2_atom_forge_pop(forge, &tup_frame);
 	}
-	lv2_atom_forge_pop(forge, &obj_frame);
+
+	osc_forge_message_pop(oforge, forge, &obj_frame, &tup_frame);
 
 	va_end(args);
 }

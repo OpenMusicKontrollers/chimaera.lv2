@@ -54,7 +54,7 @@ add_library(chimaera MODULE
 	simulator.c
 	visualizer.c
 	injector.c
-	#comm.c
+	comm.c
 	control_out.c
 	midi_out.c
 	osc_out.c)
