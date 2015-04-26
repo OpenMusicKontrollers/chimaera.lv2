@@ -166,14 +166,14 @@ osc_atom_body_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 }
 
 typedef void (*osc_message_cb_t)(uint64_t timestamp, const char *path,
-	const char *fmt, const LV2_Atom_Tuple *body);
+	const char *fmt, const LV2_Atom_Tuple *body, void *data);
 
 static inline void osc_atom_unpack(osc_forge_t *oforge,
-	const LV2_Atom_Object *obj, osc_message_cb_t cb);
+	const LV2_Atom_Object *obj, osc_message_cb_t cb, void *data);
 
 static inline void
 osc_atom_message_unpack(osc_forge_t *oforge, uint64_t timestamp,
-	const LV2_Atom_Object *obj, osc_message_cb_t cb)
+	const LV2_Atom_Object *obj, osc_message_cb_t cb, void *data)
 {
 	const LV2_Atom_String* path = NULL;
 	const LV2_Atom_String* fmt = NULL;
@@ -191,12 +191,12 @@ osc_atom_message_unpack(osc_forge_t *oforge, uint64_t timestamp,
 	const char *path_str = path ? LV2_ATOM_BODY_CONST(path) : NULL;
 	const char *fmt_str = fmt ? LV2_ATOM_BODY_CONST(fmt) : NULL;
 
-	cb(timestamp, path_str, fmt_str, body);
+	cb(timestamp, path_str, fmt_str, body, data);
 }
 
 static inline void
 osc_atom_bundle_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
-	osc_message_cb_t cb)
+	osc_message_cb_t cb, void *data)
 {
 	const LV2_Atom_Long* timestamp = NULL;
 	const LV2_Atom_Tuple* body = NULL;
@@ -219,18 +219,18 @@ osc_atom_bundle_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
 		!lv2_atom_tuple_is_end(LV2_ATOM_BODY(body), body->atom.size, itr);
 		itr = lv2_atom_tuple_next(itr))
 	{
-		osc_atom_unpack(oforge, (const LV2_Atom_Object *)itr, cb);
+		osc_atom_unpack(oforge, (const LV2_Atom_Object *)itr, cb, data);
 	}
 }
 
 static inline void
 osc_atom_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
-	osc_message_cb_t cb)
+	osc_message_cb_t cb, void *data)
 {
 	if(osc_atom_is_bundle(oforge, obj))
-		osc_atom_bundle_unpack(oforge, obj, cb);
+		osc_atom_bundle_unpack(oforge, obj, cb, data);
 	else if(osc_atom_is_message(oforge, obj))
-		osc_atom_message_unpack(oforge, 1ULL, obj, cb);
+		osc_atom_message_unpack(oforge, 1ULL, obj, cb, data);
 }
 
 static inline void

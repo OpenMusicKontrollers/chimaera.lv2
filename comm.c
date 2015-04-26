@@ -40,6 +40,7 @@ struct _handle_t {
 		LV2_URID osc_event;
 	} uris;
 	chimaera_forge_t cforge;
+	osc_forge_t oforge;
 
 	const LV2_Atom_Sequence *control;
 	LV2_Atom_Sequence *notify;
@@ -55,6 +56,12 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
+
+		LV2_Atom_Forge_Frame obj_frame;
+		LV2_Atom_Forge_Frame tup_frame;
+
+		osc_data_t *buf;
+		size_t size;
 	} comm;
 	
 	struct {
@@ -62,6 +69,8 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
+		LV2_Atom_Forge_Frame obj_frame;
+		LV2_Atom_Forge_Frame tup_frame;
 	} data;
 };
 
@@ -145,6 +154,254 @@ _data_send_adv(void *data)
 	return varchunk_read_advance(handle->data.to_worker);
 }
 
+static void
+_comm_bundle_in(osc_time_t timestamp, void *data)
+{
+	handle_t *handle = data;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame *obj_frame = &handle->comm.obj_frame;
+	LV2_Atom_Forge_Frame *tup_frame = &handle->comm.tup_frame;
+
+	osc_forge_bundle_push(&handle->oforge, forge, obj_frame, tup_frame, timestamp);
+}
+
+static void
+_comm_bundle_out(osc_time_t timestamp, void *data)
+{
+	handle_t *handle = data;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame *obj_frame = &handle->comm.obj_frame;
+	LV2_Atom_Forge_Frame *tup_frame = &handle->comm.tup_frame;
+	
+	osc_forge_bundle_pop(&handle->oforge, forge, obj_frame, tup_frame);
+}
+
+static void
+_data_bundle_in(osc_time_t timestamp, void *data)
+{
+	handle_t *handle = data;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame *obj_frame = &handle->data.obj_frame;
+	LV2_Atom_Forge_Frame *tup_frame = &handle->data.tup_frame;
+
+	osc_forge_bundle_push(&handle->oforge, forge, obj_frame, tup_frame, timestamp);
+}
+
+static void
+_data_bundle_out(osc_time_t timestamp, void *data)
+{
+	handle_t *handle = data;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame *obj_frame = &handle->data.obj_frame;
+	LV2_Atom_Forge_Frame *tup_frame = &handle->data.tup_frame;
+	
+	osc_forge_bundle_pop(&handle->oforge, forge, obj_frame, tup_frame);
+}
+
+static int
+_comm_method(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Frame obj_frame;
+	LV2_Atom_Forge_Frame tup_frame;
+
+	osc_data_t *ptr = buf;
+
+	osc_forge_message_push(&handle->oforge, forge, &obj_frame, &tup_frame,
+		path, fmt);
+
+	for(const char *type = fmt+1; *type; type++)
+		switch(*type)
+		{
+			case 'i':
+			{
+				int32_t i;
+				ptr = osc_get_int32(ptr, &i);
+				osc_forge_int32(&handle->oforge, forge, i);
+				break;
+			}
+			case 'f':
+			{
+				float f;
+				ptr = osc_get_float(ptr, &f);
+				osc_forge_float(&handle->oforge, forge, f);
+				break;
+			}
+			case 's':
+			case 'S':
+			{
+				const char *s;
+				ptr = osc_get_string(ptr, &s);
+				osc_forge_string(&handle->oforge, forge, s);
+				break;
+			}
+			case 'b':
+			{
+				osc_blob_t b;
+				ptr = osc_get_blob(ptr, &b);
+				osc_forge_blob(&handle->oforge, forge, b.size, b.payload);
+				break;
+			}
+
+			case 'h':
+			{
+				int64_t h;
+				ptr = osc_get_int64(ptr, &h);
+				osc_forge_int64(&handle->oforge, forge, h);
+				break;
+			}
+			case 'd':
+			{
+				double d;
+				ptr = osc_get_double(ptr, &d);
+				osc_forge_double(&handle->oforge, forge, d);
+				break;
+			}
+			case 't':
+			{
+				uint64_t t;
+				ptr = osc_get_timetag(ptr, &t);
+				osc_forge_timestamp(&handle->oforge, forge, t);
+				break;
+			}
+
+			case 'T':
+			{
+				osc_forge_true(&handle->oforge, forge);
+				break;
+			}
+			case 'F':
+			{
+				osc_forge_false(&handle->oforge, forge);
+				break;
+			}
+			case 'N':
+			{
+				osc_forge_nil(&handle->oforge, forge);
+				break;
+			}
+			case 'I':
+			{
+				osc_forge_bang(&handle->oforge, forge);
+				break;
+			}
+			
+			case 'c':
+			{
+				char c;
+				ptr = osc_get_char(ptr, &c);
+				osc_forge_char(&handle->oforge, forge, c);
+				break;
+			}
+			case 'm':
+			{
+				uint8_t *m;
+				ptr = osc_get_midi(ptr, &m);
+				osc_forge_midi(&handle->oforge, forge, m);
+				break;
+			}
+		}
+
+	osc_forge_message_pop(&handle->oforge, forge, &obj_frame, &tup_frame);
+
+	return 1;
+}
+
+static const osc_method_t _comm_methods [] = {
+	{NULL, NULL, _comm_method},
+	{NULL, NULL, NULL}
+};
+
+static const osc_method_t _data_methods [] = {
+	/*
+	{"/tuio2/frm", "itis", _tuio2_frm},
+	{"/tuio2/tok", "iiiff", _tuio2_tok},
+	{"/tuio2/tok", "iiifffff", _tuio2_tok},
+	{"/tuio2/alv", NULL, _tuio2_alv},
+	{"/on", "iiiff", _on},
+	{"/on", "iiiffff", _on},
+	{"/off", "i", _off},
+	{"/off", "iii", _off},
+	{"/set", "iff", _set},
+	{"/set", "iffff", _set},
+	{"/set", "iiiff", _set},
+	{"/set", "iiiffff", _set},
+	{"/idle", "", _idle},
+	*/
+	{NULL, NULL, NULL}
+};
+
+// rt-thread
+static void
+_comm_message(uint64_t timestamp, const char *path, const char *fmt,
+	const LV2_Atom_Tuple *body, void *data)
+{
+	handle_t *handle = data;
+
+	osc_data_t *buf;
+	if((buf = varchunk_write_request(handle->comm.to_worker, body->atom.size)))
+	{
+		osc_data_t *ptr = buf;
+		osc_data_t *end = buf + body->atom.size;
+
+		ptr = osc_set_path(ptr, end, path);
+		ptr = osc_set_fmt(ptr, end, fmt);
+
+		const LV2_Atom *itr = lv2_atom_tuple_begin(body);
+		for(const char *type = fmt;
+			*type && !lv2_atom_tuple_is_end(LV2_ATOM_BODY(body), body->atom.size, itr);
+			type++, itr = lv2_atom_tuple_next(itr))
+		{
+			switch(*type)
+			{
+				case 'i':
+					ptr = osc_set_int32(ptr, end, ((const LV2_Atom_Int *)itr)->body);
+					break;
+				case 'f':
+					ptr = osc_set_float(ptr, end, ((const LV2_Atom_Float *)itr)->body);
+					break;
+				case 's':
+				case 'S':
+					ptr = osc_set_string(ptr, end, LV2_ATOM_BODY_CONST(itr));
+					break;
+				case 'b':
+					ptr = osc_set_blob(ptr, end, itr->size, LV2_ATOM_BODY(itr));
+					break;
+				
+				case 'h':
+					ptr = osc_set_int64(ptr, end, ((const LV2_Atom_Long *)itr)->body);
+					break;
+				case 'd':
+					ptr = osc_set_double(ptr, end, ((const LV2_Atom_Double *)itr)->body);
+					break;
+				case 't':
+					ptr = osc_set_timetag(ptr, end, ((const LV2_Atom_Long *)itr)->body);
+					break;
+				
+				case 'T':
+				case 'F':
+				case 'N':
+				case 'I':
+					break;
+				
+				case 'c':
+					ptr = osc_set_char(ptr, end, ((const LV2_Atom_Int *)itr)->body);
+					break;
+				case 'm':
+					ptr = osc_set_midi(ptr, end, LV2_ATOM_BODY(itr));
+					break;
+			}
+		}
+
+		size_t size = ptr ? ptr - buf : 0;
+
+		if(size)
+			varchunk_write_advance(handle->comm.to_worker, size);
+	}
+}
+
 static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate,
 	const char *bundle_path, const LV2_Feature *const *features)
@@ -169,6 +426,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	
 	handle->uris.osc_event = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
 	chimaera_forge_init(&handle->cforge, handle->map);
+	osc_forge_init(&handle->oforge, handle->map);
 
 	// init comm
 	handle->comm.from_worker = varchunk_new(BUF_SIZE);
@@ -318,14 +576,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_ATOM_SEQUENCE_FOREACH(handle->control, ev)
 	{
 		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-
-		if((ptr = varchunk_write_request(handle->comm.to_worker, obj->atom.size)))
-		{
-			size_t len = 0;
-			//TODO serialize to OSC
-
-			varchunk_write_advance(handle->comm.to_worker, len);
-		}
+		osc_atom_unpack(&handle->oforge, obj, _comm_message, handle);
 	}
 	if(handle->control->atom.size > sizeof(LV2_Atom_Sequence_Body))
 		uv_async_send(&handle->flush);
@@ -336,13 +587,9 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		/*
-		lv2_atom_forge_frame_time(forge, 0);
-		lv2_atom_forge_atom(forge, size, handle->uris.osc_event);
-		lv2_atom_forge_raw(forge, ptr, size);
-		lv2_atom_forge_pad(forge, size);
-		*/
-		//TODO serialize to Atom
+		lv2_atom_forge_frame_time(forge, 0); //TODO
+		osc_dispatch_method(0, (osc_data_t *)ptr, size, (osc_method_t *)_comm_methods,
+			_comm_bundle_in, _comm_bundle_out, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
 	}
