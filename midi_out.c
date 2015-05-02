@@ -262,8 +262,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 				case CHIMAERA_STATE_IDLE:
 					_midi_idle(handle, frames, &cev);
 					break;
-				case CHIMAERA_STATE_NONE:
-					break;
 			}
 		}
 	}

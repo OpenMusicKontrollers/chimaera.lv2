@@ -151,8 +151,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 					*handle->X = 0.f;
 					*handle->Z = 0.f;
 					break;
-				case CHIMAERA_STATE_NONE:
-					break;
 			}
 		}
 	}

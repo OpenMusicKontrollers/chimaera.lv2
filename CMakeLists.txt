@@ -28,10 +28,6 @@ option(CHIMAERA_UI_PLUGINS
 	"Build Chimaera UI plugins"
 	ON)
 
-option(CHIMAERA_FAST_DISPATCH
-	"Use custom dispatch structure instead of LV2 built-ins"
-	OFF)
-
 add_library(chimaera MODULE
 	libosc/osc.c
 
@@ -60,9 +56,6 @@ add_library(chimaera MODULE
 	osc_out.c)
 if(CHIMAERA_UI_PLUGINS)
 	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_UI_PLUGINS)
-endif()
-if(CHIMAERA_FAST_DISPATCH)
-	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_FAST_DISPATCH)
 endif()
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")

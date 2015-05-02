@@ -43,7 +43,9 @@ struct _UI {
 	LV2UI_Write_Function write_function;
 	LV2UI_Controller controller;
 
-	chimaera_dump_t dump;
+	uint32_t sensors;
+	int32_t values [160];
+
 	chimaera_dict_t dict [CHIMAERA_DICT_SIZE];
 	ref_t ref [CHIMAERA_DICT_SIZE];
 
@@ -60,7 +62,7 @@ _dump_fill(UI *ui)
 {
 	elm_table_clear(ui->tab, EINA_TRUE);
 	
-	for(int i=0; i<ui->dump.sensors; i++)
+	for(int i=0; i<ui->sensors; i++)
 	{
 		Evas_Object *edj;
 
@@ -86,7 +88,7 @@ _dump_fill(UI *ui)
 		evas_object_show(south);
 		elm_table_pack(ui->tab, south, i, 1, 1, 1);
 
-		ui->dump.values[i] = 0;
+		ui->values[i] = 0;
 	}
 
 	ui->dump_needs_update = 1;
@@ -95,9 +97,9 @@ _dump_fill(UI *ui)
 static void
 _dump_update(UI *ui)
 {
-	int32_t *values = ui->dump.values;
+	int32_t *values = ui->values;
 
-	for(int i=0; i<ui->dump.sensors; i++)
+	for(int i=0; i<ui->sensors; i++)
 	{
 		Evas_Object *north = elm_table_child_get(ui->tab, i, 0);
 		Evas_Object *south = elm_table_child_get(ui->tab, i, 1);
@@ -195,7 +197,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	eoui->w = 1280,
 	eoui->h = 720;
 
-	ui->dump.sensors = 160;
+	ui->sensors = 160;
 	ui->write_function = write_function;
 	ui->controller = controller;
 	
@@ -247,9 +249,9 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 	{
 		uint32_t sensors = *(float *)buf;
 
-		if(sensors != ui->dump.sensors)
+		if(sensors != ui->sensors)
 		{
-			ui->dump.sensors = sensors;
+			ui->sensors = sensors;
 			_dump_fill(ui);
 		}
 	}
@@ -259,7 +261,11 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 
 		if(chimaera_dump_check_type(&ui->cforge, atom))
 		{
-			chimaera_dump_deforge(&ui->cforge, buf, &ui->dump);
+			uint32_t sensors;
+			const int32_t *values = chimaera_dump_deforge(&ui->cforge, atom, &sensors);
+
+			for(int i=0; i<ui->sensors; i++)
+				ui->values[i] = values[i];
 
 			_dump_update(ui);
 		}
@@ -333,8 +339,6 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 
 					break;
 				}
-				case CHIMAERA_STATE_NONE:
-					break;
 			}
 
 			_event_update(ui);

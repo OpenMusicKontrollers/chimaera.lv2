@@ -128,7 +128,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	uint32_t north = *handle->north_sel > 0.f ? 0x80 : 0;
 	uint32_t south = *handle->south_sel > 0.f ? 0x100 : 0;
 	uint32_t pid = north | south;
-	chimaera_state_t state = CHIMAERA_STATE_NONE;
+	chimaera_state_t state;
 	if(*handle->on_sel > 0.f)
 		state |= CHIMAERA_STATE_ON;
 	if(*handle->off_sel > 0.f)

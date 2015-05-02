@@ -93,24 +93,25 @@ _dump(osc_time_t time, const char *path, const char *fmt,
 	handle_t *handle = data;
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	osc_data_t *ptr = buf;
-	chimaera_dump_t dump;
+	uint32_t sensors;
+	int32_t values[160];
 
 	uint32_t fid;
 	osc_blob_t b;
 
 	ptr = osc_get_int32(ptr, (int32_t *)&fid);
 	ptr = osc_get_blob(ptr, &b);
-	int16_t *values = b.payload;
+	int16_t *payload = b.payload;
 
-	dump.sensors = b.size / sizeof(int16_t);
-	for(int i=0; i<dump.sensors; i++)
+	sensors = b.size / sizeof(int16_t);
+	for(int i=0; i<sensors; i++)
 	{
-		int16_t val = be16toh(values[i]);
-		dump.values[i] = val;
+		int16_t val = be16toh(payload[i]);
+		values[i] = val;
 	}
 
 	lv2_atom_forge_frame_time(forge, time);
-	chimaera_dump_forge(&handle->cforge, &dump);
+	chimaera_dump_forge(&handle->cforge, values, sensors);
 
 	return 1;
 }
