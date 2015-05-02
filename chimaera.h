@@ -32,11 +32,13 @@
 
 #define _ATOM_ALIGNED __attribute__((aligned(8)))
 
-// bundle uris
+// bundle uri
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
 
-// event uris
+// event uri
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#event"
+
+// state uris
 #define CHIMAERA_STATE_ON_URI			CHIMAERA_URI"#on"
 #define CHIMAERA_STATE_SET_URI		CHIMAERA_URI"#set"
 #define CHIMAERA_STATE_OFF_URI		CHIMAERA_URI"#off"
@@ -45,7 +47,7 @@
 // dump uri
 #define CHIMAERA_DUMP_URI					CHIMAERA_URI"#dump"
 
-// payload
+// payload uri
 #define CHIMAERA_PAYLOAD_URI			CHIMAERA_URI"#payload"
 
 // plugin uris
@@ -119,10 +121,10 @@ typedef struct _chimaera_forge_t	chimaera_forge_t;
 typedef struct _chimaera_dict_t		chimaera_dict_t;
 
 enum _chimaera_state_t {
-	CHIMAERA_STATE_ON,
-	CHIMAERA_STATE_SET,
-	CHIMAERA_STATE_OFF,
-	CHIMAERA_STATE_IDLE
+	CHIMAERA_STATE_ON		= 1,
+	CHIMAERA_STATE_SET	= 2,
+	CHIMAERA_STATE_OFF	= 4,
+	CHIMAERA_STATE_IDLE	= 8
 };
 
 struct _chimaera_event_t {
@@ -270,11 +272,11 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 		case CHIMAERA_STATE_ON:
 			id = cforge->uris.on;
 			break;
-		case CHIMAERA_STATE_OFF:
-			id = cforge->uris.off;
-			break;
 		case CHIMAERA_STATE_SET:
 			id = cforge->uris.set;
+			break;
+		case CHIMAERA_STATE_OFF:
+			id = cforge->uris.off;
 			break;
 		case CHIMAERA_STATE_IDLE:
 			id = cforge->uris.idle;
