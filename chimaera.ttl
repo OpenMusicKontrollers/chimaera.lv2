@@ -25,7 +25,6 @@
 @prefix work: <http://lv2plug.in/ns/ext/worker#> .
 @prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
-@prefix osc:	<http://opensoundcontrol.org#> .
 @prefix lic:	<http://opensource.org/licenses/> .
 @prefix omk:	<http://open-music-kontrollers.ch/ventosus#> .
 @prefix proj:	<http://open-music-kontrollers.ch/lv2/> .
@@ -58,19 +57,21 @@ chim:dummy_in
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports osc:OscEvent ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "osc_in" ;
 		lv2:name "OSC Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# output chimaera port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 1 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Tuio2 Plugin
@@ -87,10 +88,11 @@ chim:tuio2_in
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports osc:OscEvent ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "osc_in" ;
 		lv2:name "OSC Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
@@ -105,10 +107,11 @@ chim:tuio2_in
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Dump Plugin
@@ -125,19 +128,21 @@ chim:dump_in
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports osc:OscEvent ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "osc_in" ;
 		lv2:name "OSC Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# output chimaera port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Dump ;
+		atom:supports atom:Object ;
 		lv2:index 1 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Filter Plugin
@@ -154,10 +159,11 @@ chim:filter
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
@@ -222,10 +228,11 @@ chim:filter
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 8 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Mapper Plugin
@@ -242,10 +249,11 @@ chim:mapper
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
@@ -269,10 +277,11 @@ chim:mapper
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Injector Plugin
@@ -289,10 +298,11 @@ chim:injector
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports osc:OscEvent ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
+		lv2:designation lv2:control ;
 	] .
 		
 # Simulator UI
@@ -325,7 +335,7 @@ chim:simulator
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
@@ -354,10 +364,11 @@ chim:simulator
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Simulator UI
@@ -410,11 +421,11 @@ chim:visualizer
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
-		atom:supports chim:Dump ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
@@ -450,8 +461,7 @@ chim:visualizer
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
-		atom:supports chim:Dump ;
+		atom:supports atom:Object ;
 		lv2:index 3 ;
 		lv2:symbol "notify" ;
 		lv2:name "Notify" ;
@@ -471,10 +481,11 @@ chim:control_out
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# output control ports
 	  a lv2:OutputPort ,
@@ -562,10 +573,11 @@ chim:midi_out
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_int" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -605,6 +617,7 @@ chim:midi_out
 		lv2:index 4 ;
 		lv2:symbol "midi_out" ;
 		lv2:name "MIDI Output" ;
+		lv2:designation lv2:control ;
 	] .
 
 # Osc Plugin
@@ -621,19 +634,21 @@ chim:osc_out
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
+		atom:supports atom:Object ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
 	] , [
 	# output osc port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports osc:OscEvent ;
+		atom:supports atom:Object ;
 		lv2:index 1 ;
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
+		lv2:designation lv2:control ;
 	] .
 		
 # Comm UI
@@ -689,24 +704,22 @@ chim:comm
 		lv2:index 0 ;
 		lv2:symbol "control" ;
 		lv2:name "Control" ;
-		lv2:designation lv2:control ;
 	] , [
-	# input control port
+	# output notify port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		lv2:index 1 ;
 		lv2:symbol "notify" ;
 		lv2:name "Notify" ;
-		lv2:designation lv2:control ;
 	] , [
 	# output event port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports chim:Event ;
-		atom:supports chim:Dump ;
+		atom:supports atom:Object ;
 		lv2:index 2 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] .

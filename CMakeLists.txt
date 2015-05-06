@@ -12,7 +12,13 @@ include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
 set(DEST lib/lv2/chimaera.lv2)
-set(LIB_EXT ".so")
+if(WIN32)
+	set(LIB_EXT ".dll")
+elseif(APPLE)
+	set(LIB_EXT ".so")
+else()
+	set(LIB_EXT ".so")
+endif()
 
 find_package(PkgConfig) # ${PKG_CONFIG_FOUND}
 
@@ -24,9 +30,8 @@ pkg_search_module(UV REQUIRED libuv>=1.0)
 include_directories(${UV_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${UV_LDFLAGS})
 
-option(CHIMAERA_UI_PLUGINS
-	"Build Chimaera UI plugins"
-	ON)
+option(CHIMAERA_UI_PLUGINS "Build Chimaera UI plugins" ON)
+option(BUILD_X11_WRAPPER "Build X11 UI wrapper" ON)
 
 add_library(chimaera MODULE
 	libosc/osc.c
@@ -61,11 +66,6 @@ target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})
 
-configure_file(${PROJECT_SOURCE_DIR}/manifest.ttl.in
-	${PROJECT_BINARY_DIR}/manifest.ttl)
-install(FILES ${PROJECT_BINARY_DIR}/manifest.ttl DESTINATION ${DEST})
-install(FILES ${PROJECT_SOURCE_DIR}/chimaera.ttl DESTINATION ${DEST})
-
 if(CHIMAERA_UI_PLUGINS)
 	pkg_search_module(ELM REQUIRED elementary>=1.8)
 	include_directories(${ELM_INCLUDE_DIRS})
@@ -73,6 +73,15 @@ if(CHIMAERA_UI_PLUGINS)
 
 	if((${ELM_VERSION} VERSION_EQUAL "1.13.0") OR (${ELM_VERSION} VERSION_GREATER "1.13.0"))
 		add_definitions("-DELM_HAS_FAKE")
+	endif()
+
+	set(EO_UI_WRAP "")
+	set(UI_UI_WRAP "")
+	set(KX_UI_WRAP "")
+	if(${BUILD_X11_WRAPPER})
+		set(X11_UI_WRAP "")
+	else()
+		set(X11_UI_WRAP "#")
 	endif()
 
 	add_library(chimaera_ui MODULE
@@ -116,4 +125,14 @@ if(CHIMAERA_UI_PLUGINS)
 			${PROJECT_SOURCE_DIR}/pix/160.png)
 	add_custom_target(THEME ALL DEPENDS ${PROJECT_BINARY_DIR}/chimaera_ui.edj)
 	install(FILES ${PROJECT_BINARY_DIR}/chimaera_ui.edj DESTINATION ${DEST})
+else()
+	set(EO_UI_WRAP "#")
+	set(UI_UI_WRAP "#")
+	set(KX_UI_WRAP "#")
+	set(X11_UI_WRAP "#")
 endif()
+
+configure_file(${PROJECT_SOURCE_DIR}/manifest.ttl.in
+	${PROJECT_BINARY_DIR}/manifest.ttl)
+install(FILES ${PROJECT_BINARY_DIR}/manifest.ttl DESTINATION ${DEST})
+install(FILES ${PROJECT_SOURCE_DIR}/chimaera.ttl DESTINATION ${DEST})
