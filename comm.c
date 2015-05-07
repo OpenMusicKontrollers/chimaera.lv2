@@ -96,12 +96,8 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
-
 		LV2_Atom_Forge_Frame obj_frame;
 		LV2_Atom_Forge_Frame tup_frame;
-
-		osc_data_t *buf;
-		size_t size;
 	} comm;
 	
 	struct {
@@ -230,7 +226,7 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 	osc_forge_message_push(&handle->oforge, forge, &obj_frame, &tup_frame,
 		path, fmt);
 
-	for(const char *type = fmt+1; *type; type++)
+	for(const char *type = fmt; *type; type++)
 		switch(*type)
 		{
 			case 'i':
@@ -325,22 +321,6 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 	osc_forge_message_pop(&handle->oforge, forge, &obj_frame, &tup_frame);
 
 	return 1;
-}
-
-static void
-_data_bundle_in(osc_time_t timestamp, void *data)
-{
-	handle_t *handle = data;
-
-	//TODO
-}
-
-static void
-_data_bundle_out(osc_time_t timestamp, void *data)
-{
-	handle_t *handle = data;
-
-	//TODO
 }
 
 static inline void
@@ -719,10 +699,6 @@ _dump(osc_time_t timestamp, const char *path, const char *fmt,
 
 static const osc_method_t comm_methods [] = {
 	{NULL, NULL, _comm_method},
-	/*
-	{"/success", NULL, _comm_success},
-	{"/fail", "iss", _comm_fail},
-	*/
 
 	{NULL, NULL, NULL}
 };
@@ -750,16 +726,18 @@ static const osc_method_t data_methods [] = {
 
 // rt-thread
 static void
-_comm_message(uint64_t timestamp, const char *path, const char *fmt,
+_ui_recv(uint64_t timestamp, const char *path, const char *fmt,
 	const LV2_Atom_Tuple *body, void *data)
 {
 	handle_t *handle = data;
 
+	size_t reserve = osc_strlen(path) + osc_strlen(fmt) + body->atom.size;
+
 	osc_data_t *buf;
-	if((buf = varchunk_write_request(handle->comm.to_worker, body->atom.size)))
+	if((buf = varchunk_write_request(handle->comm.to_worker, reserve)))
 	{
 		osc_data_t *ptr = buf;
-		osc_data_t *end = buf + body->atom.size;
+		osc_data_t *end = buf + reserve;
 
 		ptr = osc_set_path(ptr, end, path);
 		ptr = osc_set_fmt(ptr, end, fmt);
@@ -1013,12 +991,12 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_ATOM_SEQUENCE_FOREACH(handle->control, ev)
 	{
 		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-		osc_atom_unpack(&handle->oforge, obj, _comm_message, handle);
+		osc_atom_unpack(&handle->oforge, obj, _ui_recv, handle);
 	}
 	if(handle->control->atom.size > sizeof(LV2_Atom_Sequence_Body))
 		uv_async_send(&handle->flush);
 
-	// read incoming comm
+	// read incoming comm and write to ui
 	capacity = handle->notify->atom.size;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->notify, capacity);
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
@@ -1039,7 +1017,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	while((ptr = varchunk_read_request(handle->data.from_worker, &size)))
 	{
 		osc_dispatch_method(0, (osc_data_t *)ptr, size, (osc_method_t *)data_methods,
-			_data_bundle_in, _data_bundle_out, handle);
+			NULL, NULL, handle);
 
 		varchunk_read_advance(handle->data.from_worker);
 	}

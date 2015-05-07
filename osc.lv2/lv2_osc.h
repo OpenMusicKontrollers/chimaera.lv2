@@ -259,6 +259,9 @@ osc_forge_bundle_pop(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	lv2_atom_forge_pop(forge, obj_frame);
 }
 
+// strlen (zero terminator included) padded to four bites
+#define padded_strlen(str) ( ( (size_t)(strlen(str) + 1) + 3 ) & ( ~3 ) )
+
 static inline void
 osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame,
@@ -267,10 +270,10 @@ osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.message);
 	{
 		lv2_atom_forge_key(forge, oforge->uris.path);
-		lv2_atom_forge_string(forge, path, strlen(path) + 1);
+		lv2_atom_forge_string(forge, path, padded_strlen(path));
 
 		lv2_atom_forge_key(forge, oforge->uris.format);
-		lv2_atom_forge_string(forge, fmt, strlen(fmt) + 1);
+		lv2_atom_forge_string(forge, fmt, padded_strlen(fmt));
 
 		lv2_atom_forge_key(forge, oforge->uris.body);
 		lv2_atom_forge_tuple(forge, tup_frame);
@@ -300,13 +303,13 @@ osc_forge_float(osc_forge_t *oforge, LV2_Atom_Forge *forge, float f)
 static inline void
 osc_forge_string(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
 {
-	lv2_atom_forge_string(forge, s, strlen(s) + 1);
+	lv2_atom_forge_string(forge, s, padded_strlen(s));
 }
 
 static inline void
 osc_forge_symbol(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
 {
-	lv2_atom_forge_string(forge, s, strlen(s) + 1);
+	lv2_atom_forge_string(forge, s, padded_strlen(s));
 }
 
 static inline void
@@ -374,14 +377,11 @@ osc_forge_bang(osc_forge_t *oforge, LV2_Atom_Forge *forge)
 }
 
 static inline void
-osc_forge_message_vararg(osc_forge_t *oforge, LV2_Atom_Forge *forge,
-	const char *path, const char *fmt, ...)
+osc_forge_message_varlist(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	const char *path, const char *fmt, va_list args)
 {
 	LV2_Atom_Forge_Frame obj_frame;
 	LV2_Atom_Forge_Frame tup_frame;
-
-	va_list args;
-	va_start(args, fmt);
 
 	osc_forge_message_push(oforge, forge, &obj_frame, &tup_frame, path, fmt);
 
@@ -445,6 +445,21 @@ osc_forge_message_vararg(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	}
 
 	osc_forge_message_pop(oforge, forge, &obj_frame, &tup_frame);
+
+	va_end(args);
+}
+
+static inline void
+osc_forge_message_vararg(osc_forge_t *oforge, LV2_Atom_Forge *forge,
+	const char *path, const char *fmt, ...)
+{
+	LV2_Atom_Forge_Frame obj_frame;
+	LV2_Atom_Forge_Frame tup_frame;
+
+	va_list args;
+	va_start(args, fmt);
+
+	osc_forge_message_varlist(oforge, forge, path, fmt, args);
 
 	va_end(args);
 }
