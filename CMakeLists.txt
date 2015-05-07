@@ -47,9 +47,6 @@ add_library(chimaera MODULE
 	cjson/cJSON.c
 
 	chimaera.c
-	dummy_in.c
-	dump_in.c
-	tuio2_in.c
 	filter.c
 	mapper.c
 	simulator.c

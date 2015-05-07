@@ -191,7 +191,8 @@ osc_atom_message_unpack(osc_forge_t *oforge, uint64_t timestamp,
 	const char *path_str = path ? LV2_ATOM_BODY_CONST(path) : NULL;
 	const char *fmt_str = fmt ? LV2_ATOM_BODY_CONST(fmt) : NULL;
 
-	cb(timestamp, path_str, fmt_str, body, data);
+	if(cb)
+		cb(timestamp, path_str, fmt_str, body, data);
 }
 
 static inline void
@@ -231,6 +232,8 @@ osc_atom_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
 		osc_atom_bundle_unpack(oforge, obj, cb, data);
 	else if(osc_atom_is_message(oforge, obj))
 		osc_atom_message_unpack(oforge, 1ULL, obj, cb, data);
+	else
+		; // no OSC packet, obviously
 }
 
 static inline void
@@ -264,10 +267,10 @@ osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.message);
 	{
 		lv2_atom_forge_key(forge, oforge->uris.path);
-		lv2_atom_forge_string(forge, path, strlen(path));
+		lv2_atom_forge_string(forge, path, strlen(path) + 1);
 
 		lv2_atom_forge_key(forge, oforge->uris.format);
-		lv2_atom_forge_string(forge, fmt, strlen(fmt));
+		lv2_atom_forge_string(forge, fmt, strlen(fmt) + 1);
 
 		lv2_atom_forge_key(forge, oforge->uris.body);
 		lv2_atom_forge_tuple(forge, tup_frame);
@@ -297,13 +300,13 @@ osc_forge_float(osc_forge_t *oforge, LV2_Atom_Forge *forge, float f)
 static inline void
 osc_forge_string(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
 {
-	lv2_atom_forge_string(forge, s, strlen(s));
+	lv2_atom_forge_string(forge, s, strlen(s) + 1);
 }
 
 static inline void
 osc_forge_symbol(osc_forge_t *oforge, LV2_Atom_Forge *forge, const char *s)
 {
-	lv2_atom_forge_string(forge, s, strlen(s));
+	lv2_atom_forge_string(forge, s, strlen(s) + 1);
 }
 
 static inline void
