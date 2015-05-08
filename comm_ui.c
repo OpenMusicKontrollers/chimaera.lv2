@@ -27,6 +27,7 @@
 #include <lv2_osc.h>
 
 #define BUF_SIZE 2048
+#define MAX_CONCURRENT_JOBS 20
 
 typedef struct _intro_job_t intro_job_t;
 typedef struct _intro_arg_t intro_arg_t;
@@ -56,6 +57,7 @@ struct _UI {
 
 	Evas_Object *pane;
 	Evas_Object *intro;
+	int intro_complete;
 
 	struct {
 		Elm_Genlist_Item_Class *node;
@@ -64,6 +66,7 @@ struct _UI {
 	} itc;
 	
 	cJSON *root;
+	int jobn;
 	Eina_List *jobs;
 
 	int32_t uid;
@@ -378,6 +381,13 @@ _intro_arg_content_get(void *data, Evas_Object *obj, const char *part)
 		evas_object_show(writable);
 		elm_grid_pack(vbox, writable, 10, 0, 10, 100);
 
+		Evas_Object *label = elm_label_add(vbox);
+		elm_object_text_set(label, description ? description->valuestring : NULL);
+		evas_object_size_hint_weight_set(label, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+		evas_object_size_hint_align_set(label, 1.f, EVAS_HINT_FILL);
+		evas_object_show(label);
+		elm_grid_pack(vbox, label, 20, 0, 30, 100);
+
 		Evas_Object *grab = NULL;
 
 		switch(type->valuestring[0])
@@ -503,15 +513,8 @@ _intro_arg_content_get(void *data, Evas_Object *obj, const char *part)
 			evas_object_size_hint_weight_set(grab, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
 			evas_object_size_hint_align_set(grab, EVAS_HINT_FILL, EVAS_HINT_FILL);
 			evas_object_show(grab);
-			elm_grid_pack(vbox, grab, 20, 0, 50, 100);
+			elm_grid_pack(vbox, grab, 50, 0, 50, 100);
 		}
-
-		Evas_Object *label = elm_label_add(vbox);
-		elm_object_text_set(label, description ? description->valuestring : NULL);
-		evas_object_size_hint_weight_set(label, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-		evas_object_size_hint_align_set(label, 1.f, EVAS_HINT_FILL);
-		evas_object_show(label);
-		elm_grid_pack(vbox, label, 70, 0, 30, 100);
 
 		return vbox;
 	}
@@ -616,22 +619,32 @@ _comm_job_queue(UI *ui)
 {
 	int n = eina_list_count(ui->jobs);
 
-	if(n) // are there jobs to process
-	{
-		intro_job_t *job = eina_list_data_get(ui->jobs);
+	ui->jobn = n < MAX_CONCURRENT_JOBS ? n : MAX_CONCURRENT_JOBS;
 
-		// request next introspect item
-		_comm_message_send(ui, job->path, "i", ui->uid++);
+	if(ui->jobn)
+	{
+		for(int i=0; i< ui->jobn; i++) // are there jobs to process
+		{
+			intro_job_t *job = eina_list_nth(ui->jobs, i);
+
+			// request next introspect item
+			_comm_message_send(ui, job->path, "i", ui->uid++);
+		}
 	}
 	else // introspection done
 	{
 		//char *pretty = cJSON_Print(ui->root);
 		//printf("%s\n", pretty);
 		//free(pretty);
-		
-		Elm_Object_Item *elmnt = elm_genlist_item_append(ui->intro, ui->itc.node,
-			ui->root, NULL, ELM_GENLIST_ITEM_TREE, NULL, NULL);
-		elm_genlist_item_expanded_set(elmnt, EINA_TRUE);
+
+		if(!ui->intro_complete)
+		{
+			Elm_Object_Item *elmnt = elm_genlist_item_append(ui->intro, ui->itc.node,
+				ui->root, NULL, ELM_GENLIST_ITEM_TREE, NULL, NULL);
+			elm_genlist_item_expanded_set(elmnt, EINA_TRUE);
+
+			ui->intro_complete = 1;
+		}
 	}
 }
 
@@ -718,6 +731,9 @@ cleanup(LV2UI_Handle handle)
 	UI *ui = handle;
 
 	eoui_cleanup(&ui->eoui);
+	elm_genlist_item_class_free(ui->itc.node);
+	elm_genlist_item_class_free(ui->itc.meth);
+	elm_genlist_item_class_free(ui->itc.arg);
 	free(ui);
 }
 
@@ -792,6 +808,7 @@ _comm_introspect(UI *ui, const char *target, const char *json)
 
 	// remove job from job queue
 	ui->jobs = eina_list_remove(ui->jobs, job);
+	ui->jobn -= 1;
 	free(job);
 }
 
@@ -831,6 +848,7 @@ _comm_query(UI *ui, const char *target, const char *fmt, const LV2_Atom *itr)
 
 	// remove job from job queue
 	ui->jobs = eina_list_remove(ui->jobs, job);
+	ui->jobn -= 1;
 	free(job);
 }
 
@@ -880,12 +898,14 @@ _comm_recv(uint64_t timestamp, const char *path, const char *fmt,
 		{
 			// remove job from job queue
 			ui->jobs = eina_list_remove(ui->jobs, job);
+			ui->jobn -= 1;
 			free(job);
 		}
 	}
 
 	// run job queue
-	_comm_job_queue(ui);
+	if(ui->jobn == 0) // last batch processed?
+		_comm_job_queue(ui);
 }
 
 static void
@@ -895,7 +915,9 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 	UI *ui = handle;
 
 	if(i == 1) // notify
+	{
 		osc_atom_unpack(&ui->oforge, buf, _comm_recv, ui);
+	}
 }
 
 const LV2UI_Descriptor comm_eo = {

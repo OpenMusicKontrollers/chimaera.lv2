@@ -20,9 +20,11 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix lv2:	<http://lv2plug.in/ns/lv2core#> .
 @prefix ui:		<http://lv2plug.in/ns/extensions/ui#> .
+@prefix rsz:  <http://lv2plug.in/ns/ext/resize-port#> .
 @prefix atom:	<http://lv2plug.in/ns/ext/atom#> .
 @prefix midi:	<http://lv2plug.in/ns/ext/midi#> .
 @prefix work: <http://lv2plug.in/ns/ext/worker#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
 @prefix lic:	<http://opensource.org/licenses/> .
@@ -244,7 +246,7 @@ chim:simulator
 		lv2:index 1 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
-		lv2:default 48 ;
+		lv2:default 128 ;
 		lv2:minimum 48 ;
 		lv2:maximum 160 ;
 		lv2:portProperty lv2:integer ;
@@ -331,7 +333,7 @@ chim:visualizer
 		lv2:index 1 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
-		lv2:default 48 ;
+		lv2:default 128 ;
 		lv2:minimum 48 ;
 		lv2:maximum 160 ;
 		lv2:portProperty lv2:integer ;
@@ -354,6 +356,7 @@ chim:visualizer
 		lv2:minimum 10 ;
 		lv2:maximum 60 ;
 		lv2:portProperty lv2:integer ;
+		units:unit units:hz ;
 	] , [
 	# output notify port
 	  a lv2:OutputPort ,
@@ -482,10 +485,19 @@ chim:midi_out
 		lv2:index 1 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
-		lv2:default 160 ;
-		lv2:minimum 16.0 ;
-		lv2:maximum 160.0 ;
+		lv2:default 128 ;
+		lv2:minimum 48 ;
+		lv2:maximum 160 ;
 		lv2:portProperty lv2:integer ;
+		lv2:portProperty lv2:enumeration ;
+		lv2:scalePoint [ rdfs:label "S48" ; rdf:value 48 ] ;
+		lv2:scalePoint [ rdfs:label "S64" ; rdf:value 64 ] ;
+		lv2:scalePoint [ rdfs:label "S80" ; rdf:value 80 ] ;
+		lv2:scalePoint [ rdfs:label "S96" ; rdf:value 96 ] ;
+		lv2:scalePoint [ rdfs:label "S112" ; rdf:value 112 ] ;
+		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
+		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
+		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -496,6 +508,7 @@ chim:midi_out
 		lv2:minimum 0.0 ;
 		lv2:maximum 8.0 ;
 		lv2:portProperty lv2:integer ;
+		units:unit units:oct ;
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -602,6 +615,7 @@ chim:comm
 		lv2:index 0 ;
 		lv2:symbol "control" ;
 		lv2:name "Control" ;
+		rsz:minimumSize 4096 ;
 	] , [
 	# output notify port
 	  a lv2:OutputPort ,
@@ -610,8 +624,9 @@ chim:comm
 		lv2:index 1 ;
 		lv2:symbol "notify" ;
 		lv2:name "Notify" ;
+		rsz:minimumSize 4096 ;
 	] , [
-	# output notify port
+	# reet input port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
