@@ -36,20 +36,6 @@
 #define LV2_OSC__OscFormat				LV2_OSC_PREFIX"#OscFormat"
 #define LV2_OSC__OscBody					LV2_OSC_PREFIX"#OscBody"
 
-/*
-#define LV2_OSC__IntrospectPath		LV2_OSC_PREFIX"#IntrospectPath"
-#define LV2_OSC__IntrospectType		LV2_OSC_PREFIX"#IntrospectType"
-#define LV2_OSC__IntrospectNode		LV2_OSC_PREFIX"#IntrospectNode"
-#define LV2_OSC__IntrospectMethod	LV2_OSC_PREFIX"#IntrospectMethod"
-#define LV2_OSC__IntrospectDesk		LV2_OSC_PREFIX"#IntrospectDesc"
-#define LV2_OSC__IntrospectItems	LV2_OSC_PREFIX"#IntrospectItems"
-#define LV2_OSC__IntrospectArgs		LV2_OSC_PREFIX"#IntrospectArgs"
-#define LV2_OSC__IntrospectRead		LV2_OSC_PREFIX"#IntrospectRead"
-#define LV2_OSC__IntrospectWrite	LV2_OSC_PREFIX"#IntrospectWrite"
-#define LV2_OSC__IntrospectRange	LV2_OSC_PREFIX"#IntrospectRange"
-#define LV2_OSC__IntrospectValues	LV2_OSC_PREFIX"#IntrospectValues"
-*/
-
 typedef struct _osc_forge_t osc_forge_t;
 
 struct _osc_forge_t {
