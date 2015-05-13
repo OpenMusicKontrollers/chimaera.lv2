@@ -626,12 +626,23 @@ chim:comm
 		lv2:name "Notify" ;
 		rsz:minimumSize 4096 ;
 	] , [
-	# reet input port
+	# reset input port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
 		lv2:symbol "reset" ;
-		lv2:name "Reset" ;
+		lv2:name "TUIO2 Reset" ;
+		lv2:default 0.0 ;
+		lv2:minimum 0.0 ;
+		lv2:maximum 1.0 ;
+		lv2:portProperty lv2:toggled ;
+	] , [
+	# through input port
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 3 ;
+		lv2:symbol "through" ;
+		lv2:name "OSC Through" ;
 		lv2:default 0.0 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 1.0 ;
@@ -642,7 +653,7 @@ chim:comm
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
 		lv2:designation lv2:control ;

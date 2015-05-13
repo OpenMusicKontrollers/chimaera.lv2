@@ -84,6 +84,7 @@ struct _handle_t {
 	const LV2_Atom_Sequence *control;
 	LV2_Atom_Sequence *notify;
 	const float *reset_in;
+	const float *through_in;
 	LV2_Atom_Sequence *event_out;
 
 	uv_thread_t thread;
@@ -96,8 +97,6 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
-		LV2_Atom_Forge_Frame obj_frame;
-		LV2_Atom_Forge_Frame tup_frame;
 	} comm;
 	
 	struct {
@@ -105,8 +104,6 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
-		LV2_Atom_Forge_Frame obj_frame;
-		LV2_Atom_Forge_Frame tup_frame;
 	} data;
 };
 
@@ -190,39 +187,61 @@ _data_send_adv(void *data)
 	return varchunk_read_advance(handle->data.to_worker);
 }
 
-static void
-_comm_bundle_in(osc_time_t timestamp, void *data)
-{
-	handle_t *handle = data;
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	LV2_Atom_Forge_Frame *obj_frame = &handle->comm.obj_frame;
-	LV2_Atom_Forge_Frame *tup_frame = &handle->comm.tup_frame;
-
-	osc_forge_bundle_push(&handle->oforge, forge, obj_frame, tup_frame, timestamp);
-}
-
-static void
-_comm_bundle_out(osc_time_t timestamp, void *data)
-{
-	handle_t *handle = data;
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	LV2_Atom_Forge_Frame *obj_frame = &handle->comm.obj_frame;
-	LV2_Atom_Forge_Frame *tup_frame = &handle->comm.tup_frame;
-	
-	osc_forge_bundle_pop(&handle->oforge, forge, obj_frame, tup_frame);
-}
-
 static int
-_comm_method(osc_time_t timestamp, const char *path, const char *fmt,
+_comm_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 	osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_comm_timeout(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_comm_connect(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_comm_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static void
+_osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size)
+{
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	LV2_Atom_Forge_Frame obj_frame;
 	LV2_Atom_Forge_Frame tup_frame;
 
 	osc_data_t *ptr = buf;
 
+	lv2_atom_forge_frame_time(forge, 0); //TODO
 	osc_forge_message_push(&handle->oforge, forge, &obj_frame, &tup_frame,
 		path, fmt);
 
@@ -319,6 +338,15 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 		}
 
 	osc_forge_message_pop(&handle->oforge, forge, &obj_frame, &tup_frame);
+}
+
+static int
+_comm_method(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	_osc_atom_serialize(handle, path, fmt, buf, size);	
 
 	return 1;
 }
@@ -330,6 +358,62 @@ _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 
 	lv2_atom_forge_frame_time(forge, frames);
 	chimaera_event_forge(&handle->cforge, cev);
+}
+
+static int
+_data_resolve(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_data_timeout(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_data_connect(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_data_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_data_through(osc_time_t timestamp, const char *path, const char *fmt,
+	osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	if(*handle->through_in != 0.f)
+		_osc_atom_serialize(handle, path, fmt, buf, size);	
+
+	return 0;
 }
 
 static int
@@ -698,12 +782,24 @@ _dump(osc_time_t timestamp, const char *path, const char *fmt,
 }
 
 static const osc_method_t comm_methods [] = {
+	{"/stream/resolve", "", _comm_resolve},
+	{"/stream/timeout", "", _comm_timeout},
+	{"/stream/connect", "", _comm_connect},
+	{"/stream/disconnect", "", _comm_disconnect},
+
 	{NULL, NULL, _comm_method},
 
 	{NULL, NULL, NULL}
 };
 
 static const osc_method_t data_methods [] = {
+	{"/stream/resolve", "", _data_resolve},
+	{"/stream/timeout", "", _data_timeout},
+	{"/stream/connect", "", _data_connect},
+	{"/stream/disconnect", "", _data_disconnect},
+
+	{NULL, NULL, _data_through},
+
 	{"/tuio2/frm", "itis", _tuio2_frm},
 	{"/tuio2/tok", "iiifff", _tuio2_tok},
 	{"/tuio2/tok", "iiiffffffff", _tuio2_tok},
@@ -872,6 +968,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->reset_in = (const float *)data;
 			break;
 		case 3:
+			handle->through_in = (const float *)data;
+			break;
+		case 4:
 			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -1002,9 +1101,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		lv2_atom_forge_frame_time(forge, 0); //TODO
-		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size, (osc_method_t *)comm_methods,
-			_comm_bundle_in, _comm_bundle_out, handle);
+		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size,
+			(osc_method_t *)comm_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
 	}
@@ -1016,8 +1114,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->data.from_worker, &size)))
 	{
-		osc_dispatch_method(0, (osc_data_t *)ptr, size, (osc_method_t *)data_methods,
-			NULL, NULL, handle);
+		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size,
+			(osc_method_t *)data_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->data.from_worker);
 	}
