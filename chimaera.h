@@ -47,9 +47,6 @@
 // dump uri
 #define CHIMAERA_DUMP_URI					CHIMAERA_URI"#dump"
 
-// payload uri
-#define CHIMAERA_PAYLOAD_URI			CHIMAERA_URI"#payload"
-
 // plugin uris
 #define CHIMAERA_DUMMY_IN_URI			CHIMAERA_URI"#dummy_in"
 #define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
@@ -174,8 +171,6 @@ struct _chimaera_forge_t {
 		LV2_URID idle;
 
 		LV2_URID dump;
-
-		LV2_URID payload;
 	} uris;
 };
 
@@ -197,8 +192,6 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 	cforge->uris.idle = map->map(map->handle, CHIMAERA_STATE_IDLE_URI);
 
 	cforge->uris.dump = map->map(map->handle, CHIMAERA_DUMP_URI);
-	
-	cforge->uris.payload = map->map(map->handle, CHIMAERA_PAYLOAD_URI);
 
 	lv2_atom_forge_init(forge, map);
 }
@@ -215,11 +208,11 @@ chimaera_dump_forge(chimaera_forge_t *cforge, int32_t *values, uint32_t sensors)
 			.obj = {
 				.atom.type = forge->Object,
 				.atom.size = sizeof(chimaera_dump_t) + values_size - sizeof(LV2_Atom),
-				.body.id = 0,
+				.body.id = cforge->uris.event,
 				.body.otype = cforge->uris.dump 
 			},
 			.prop = {
-				.key = cforge->uris.payload,
+				.key = cforge->uris.dump,
 				.context = 0,
 				.value.type = forge->Vector,
 				.value.size = sizeof(LV2_Atom_Vector_Body) + values_size
@@ -254,6 +247,7 @@ chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
 
 	if(lv2_atom_forge_is_object_type(forge, atom->type)
+			&& (obj->body.id == cforge->uris.event)
 			&& (obj->body.otype == cforge->uris.dump) )
 		return 1;
 	
@@ -266,20 +260,20 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 {
 	LV2_Atom_Forge *forge = &cforge->forge;
 
-	uint32_t id = 0;
+	uint32_t otype = 0;
 	switch(ev->state)
 	{
 		case CHIMAERA_STATE_ON:
-			id = cforge->uris.on;
+			otype = cforge->uris.on;
 			break;
 		case CHIMAERA_STATE_SET:
-			id = cforge->uris.set;
+			otype = cforge->uris.set;
 			break;
 		case CHIMAERA_STATE_OFF:
-			id = cforge->uris.off;
+			otype = cforge->uris.off;
 			break;
 		case CHIMAERA_STATE_IDLE:
-			id = cforge->uris.idle;
+			otype = cforge->uris.idle;
 			break;
 	}
 
@@ -288,11 +282,11 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 			.obj = {
 				.atom.type = forge->Object,
 				.atom.size = sizeof(chimaera_pack_t) - sizeof(LV2_Atom),
-				.body.id = id,
-				.body.otype = cforge->uris.event 
+				.body.id = cforge->uris.event,
+				.body.otype = otype
 			},
 			.prop = {
-				.key = cforge->uris.payload,
+				.key = otype,
 				.context = 0,
 				.value.type = forge->Tuple,
 				.value.size = sizeof(chimaera_pack_t) - sizeof(LV2_Atom_Object) - sizeof(LV2_Atom_Property_Body)
@@ -345,7 +339,8 @@ chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
 
 	if(lv2_atom_forge_is_object_type(forge, atom->type)
-			&& (obj->body.otype == cforge->uris.event) )
+			&& (obj->body.id == cforge->uris.event)
+			&& (obj->body.otype != cforge->uris.dump) )
 		return 1;
 	
 	return 0;
@@ -358,15 +353,15 @@ chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
 	const LV2_Atom_Forge *forge = &cforge->forge;
 	const chimaera_pack_t *pack = (const chimaera_pack_t *)atom;
 
-	uint32_t id = pack->cobj.obj.body.id;
+	uint32_t otype = pack->cobj.obj.body.otype;
 
-	if(id == cforge->uris.on)
+	if(otype == cforge->uris.on)
 		ev->state = CHIMAERA_STATE_ON;
-	else if(id == cforge->uris.set)
+	else if(otype == cforge->uris.set)
 		ev->state = CHIMAERA_STATE_SET;
-	else if(id == cforge->uris.off)
+	else if(otype == cforge->uris.off)
 		ev->state = CHIMAERA_STATE_OFF;
-	else if(id == cforge->uris.idle)
+	else if(otype == cforge->uris.idle)
 		ev->state = CHIMAERA_STATE_IDLE;
 
 	ev->sid = pack->sid.body;

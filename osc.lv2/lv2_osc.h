@@ -34,7 +34,6 @@
 #define LV2_OSC__OscMessage				LV2_OSC_PREFIX"#OscMessage"
 #define LV2_OSC__OscPath					LV2_OSC_PREFIX"#OscPath"
 #define LV2_OSC__OscFormat				LV2_OSC_PREFIX"#OscFormat"
-#define LV2_OSC__OscBody					LV2_OSC_PREFIX"#OscBody"
 
 typedef struct _osc_forge_t osc_forge_t;
 
@@ -49,7 +48,6 @@ struct _osc_forge_t {
 		LV2_URID message;
 		LV2_URID path;
 		LV2_URID format;
-		LV2_URID body;
 
 		LV2_URID midi;
 	} uris;
@@ -66,7 +64,6 @@ osc_forge_init(osc_forge_t *oforge, LV2_URID_Map *map)
 	oforge->uris.message = map->map(map->handle, LV2_OSC__OscMessage);
 	oforge->uris.path = map->map(map->handle, LV2_OSC__OscPath);
 	oforge->uris.format = map->map(map->handle, LV2_OSC__OscFormat);
-	oforge->uris.body = map->map(map->handle, LV2_OSC__OscBody);
 	
 	oforge->uris.midi = map->map(map->handle, LV2_MIDI__MidiEvent);
 
@@ -76,7 +73,9 @@ osc_forge_init(osc_forge_t *oforge, LV2_URID_Map *map)
 static inline int
 osc_atom_is_bundle(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 {
-	return obj->body.otype == oforge->uris.bundle;
+	return (obj->atom.type == oforge->forge.Object)
+		&& (obj->body.id == oforge->uris.event)
+		&& (obj->body.otype == oforge->uris.bundle);
 }
 
 static inline uint64_t
@@ -96,10 +95,27 @@ osc_atom_bundle_timestamp_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 		: 1ULL;
 }
 
+static inline const LV2_Atom_Tuple *
+osc_atom_bundle_payload_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
+{
+	const LV2_Atom_Tuple* body = NULL;
+
+	LV2_Atom_Object_Query q[] = {
+		{ oforge->uris.bundle, (const LV2_Atom **)&body },
+		LV2_ATOM_OBJECT_QUERY_END
+	};
+
+	lv2_atom_object_query(obj, q);
+
+	return body;
+}
+
 static inline int
 osc_atom_is_message(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 {
-	return obj->body.otype == oforge->uris.message;
+	return (obj->atom.type == oforge->forge.Object)
+		&& (obj->body.id == oforge->uris.event)
+		&& (obj->body.otype == oforge->uris.message);
 }
 
 static inline const char *
@@ -137,12 +153,12 @@ osc_atom_message_fmt_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 }
 
 static inline const LV2_Atom_Tuple *
-osc_atom_body_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
+osc_atom_message_payload_get(osc_forge_t *oforge, const LV2_Atom_Object *obj)
 {
 	const LV2_Atom_Tuple* body = NULL;
 
 	LV2_Atom_Object_Query q[] = {
-		{ oforge->uris.body, (const LV2_Atom **)&body },
+		{ oforge->uris.message, (const LV2_Atom **)&body },
 		LV2_ATOM_OBJECT_QUERY_END
 	};
 
@@ -168,7 +184,7 @@ osc_atom_message_unpack(osc_forge_t *oforge, uint64_t timestamp,
 	LV2_Atom_Object_Query q[] = {
 		{ oforge->uris.path, (const LV2_Atom **)&path },
 		{ oforge->uris.format, (const LV2_Atom **)&fmt },
-		{ oforge->uris.body, (const LV2_Atom **)&body },
+		{ oforge->uris.message, (const LV2_Atom **)&body },
 		LV2_ATOM_OBJECT_QUERY_END
 	};
 	
@@ -190,7 +206,7 @@ osc_atom_bundle_unpack(osc_forge_t *oforge, const LV2_Atom_Object *obj,
 
 	LV2_Atom_Object_Query q[] = {
 		{ oforge->uris.timestamp, (const LV2_Atom **)&timestamp },
-		{ oforge->uris.body, (const LV2_Atom **)&body },
+		{ oforge->uris.bundle, (const LV2_Atom **)&body },
 		LV2_ATOM_OBJECT_QUERY_END
 	};
 	
@@ -227,12 +243,12 @@ osc_forge_bundle_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame,
 	uint64_t timestamp)
 {
-	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.bundle);
+	lv2_atom_forge_object(forge, obj_frame, oforge->uris.event, oforge->uris.bundle);
 	{
 		lv2_atom_forge_key(forge, oforge->uris.timestamp);
 		lv2_atom_forge_long(forge, timestamp);
 
-		lv2_atom_forge_key(forge, oforge->uris.body);
+		lv2_atom_forge_key(forge, oforge->uris.bundle);
 		lv2_atom_forge_tuple(forge, tup_frame);
 	}
 }
@@ -253,7 +269,7 @@ osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 	LV2_Atom_Forge_Frame *obj_frame, LV2_Atom_Forge_Frame *tup_frame,
 	const char *path, const char *fmt)
 {
-	lv2_atom_forge_object(forge, obj_frame, 0, oforge->uris.message);
+	lv2_atom_forge_object(forge, obj_frame, oforge->uris.event, oforge->uris.message);
 	{
 		lv2_atom_forge_key(forge, oforge->uris.path);
 		lv2_atom_forge_string(forge, path, padded_strlen(path));
@@ -261,7 +277,7 @@ osc_forge_message_push(osc_forge_t *oforge, LV2_Atom_Forge *forge,
 		lv2_atom_forge_key(forge, oforge->uris.format);
 		lv2_atom_forge_string(forge, fmt, padded_strlen(fmt));
 
-		lv2_atom_forge_key(forge, oforge->uris.body);
+		lv2_atom_forge_key(forge, oforge->uris.message);
 		lv2_atom_forge_tuple(forge, tup_frame);
 	}
 }

@@ -1003,7 +1003,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
 		lv2_atom_forge_frame_time(forge, 0); //TODO
-		osc_dispatch_method(0, (osc_data_t *)ptr, size, (osc_method_t *)comm_methods,
+		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size, (osc_method_t *)comm_methods,
 			_comm_bundle_in, _comm_bundle_out, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
