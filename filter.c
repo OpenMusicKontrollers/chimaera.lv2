@@ -75,28 +75,28 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->group_sel = (const float *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->north_sel = (const float *)data;
+			handle->group_sel = (const float *)data;
 			break;
 		case 3:
-			handle->south_sel = (const float *)data;
+			handle->north_sel = (const float *)data;
 			break;
 		case 4:
-			handle->on_sel = (const float *)data;
+			handle->south_sel = (const float *)data;
 			break;
 		case 5:
-			handle->off_sel = (const float *)data;
+			handle->on_sel = (const float *)data;
 			break;
 		case 6:
-			handle->set_sel = (const float *)data;
+			handle->off_sel = (const float *)data;
 			break;
 		case 7:
-			handle->idle_sel = (const float *)data;
+			handle->set_sel = (const float *)data;
 			break;
 		case 8:
-			handle->event_out = (LV2_Atom_Sequence *)data;
+			handle->idle_sel = (const float *)data;
 			break;
 		default:
 			break;

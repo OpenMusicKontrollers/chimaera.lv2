@@ -959,19 +959,19 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 	switch(port)
 	{
 		case 0:
-			handle->control = (const LV2_Atom_Sequence *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->notify = (LV2_Atom_Sequence *)data;
-			break;
-		case 2:
 			handle->reset_in = (const float *)data;
 			break;
-		case 3:
+		case 2:
 			handle->through_in = (const float *)data;
 			break;
+		case 3:
+			handle->control = (const LV2_Atom_Sequence *)data;
+			break;
 		case 4:
-			handle->event_out = (LV2_Atom_Sequence *)data;
+			handle->notify = (LV2_Atom_Sequence *)data;
 			break;
 		default:
 			break;

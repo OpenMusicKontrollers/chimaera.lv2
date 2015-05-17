@@ -27,6 +27,7 @@ struct _handle_t {
 	chimaera_forge_t cforge;
 
 	const LV2_Atom_Sequence *event_in;
+	LV2_Atom_Sequence *event_out;
 	float *gate;
 	float *sid;
 	float *north;
@@ -73,27 +74,30 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->gate = (float *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->sid = (float *)data;
+			handle->gate = (float *)data;
 			break;
 		case 3:
-			handle->north = (float *)data;
+			handle->sid = (float *)data;
 			break;
 		case 4:
-			handle->south = (float *)data;
+			handle->north = (float *)data;
 			break;
 		case 5:
-			handle->x = (float *)data;
+			handle->south = (float *)data;
 			break;
 		case 6:
-			handle->z = (float *)data;
+			handle->x = (float *)data;
 			break;
 		case 7:
-			handle->X = (float *)data;
+			handle->z = (float *)data;
 			break;
 		case 8:
+			handle->X = (float *)data;
+			break;
+		case 9:
 			handle->Z = (float *)data;
 			break;
 		default:
@@ -112,6 +116,10 @@ static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
+
+	// clone event_in to event_out
+	memcpy(handle->event_out, handle->event_in,
+		sizeof(LV2_Atom) + handle->event_in->atom.size);
 
 	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)

@@ -86,16 +86,16 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->sensors = (const float *)data;
+			handle->midi_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->octave = (const float *)data;
+			handle->sensors = (const float *)data;
 			break;
 		case 3:
-			handle->controller = (const float *)data;
+			handle->octave = (const float *)data;
 			break;
 		case 4:
-			handle->midi_out = (LV2_Atom_Sequence *)data;
+			handle->controller = (const float *)data;
 			break;
 		default:
 			break;

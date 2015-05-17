@@ -61,14 +61,24 @@ chim:filter
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
 		lv2:index 0 ;
-		lv2:symbol "event_int" ;
+		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
+	] , [
+	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 1 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
 		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "group_sel" ;
 		lv2:name "Group Select" ;
 		lv2:default 255 ;
@@ -78,7 +88,7 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 3 ;
 		lv2:symbol "north_sel" ;
 		lv2:name "North Polarity Select" ;
 		lv2:default 1.0 ;
@@ -86,7 +96,7 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "south_sel" ;
 		lv2:name "South Polarity Select" ;
 		lv2:default 1.0 ;
@@ -94,7 +104,7 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 4 ;
+		lv2:index 5 ;
 		lv2:symbol "on_sel" ;
 		lv2:name "On Event Select" ;
 		lv2:default 1.0 ;
@@ -102,7 +112,7 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 5 ;
+		lv2:index 6 ;
 		lv2:symbol "off_sel" ;
 		lv2:name "Off Event Select" ;
 		lv2:default 1.0 ;
@@ -110,7 +120,7 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 6 ;
+		lv2:index 7 ;
 		lv2:symbol "set_sel" ;
 		lv2:name "Set Event Select" ;
 		lv2:default 1.0 ;
@@ -118,21 +128,11 @@ chim:filter
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 7 ;
+		lv2:index 8 ;
 		lv2:symbol "idle_sel" ;
 		lv2:name "Idle Event Select" ;
 		lv2:default 1.0 ;
 		lv2:portProperty lv2:toggled ;
-	] , [
-	# output event port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
-		lv2:index 8 ;
-		lv2:symbol "event_out" ;
-		lv2:name "Event Output" ;
-		lv2:designation lv2:control ;
 	] .
 
 # Mapper Plugin
@@ -151,14 +151,24 @@ chim:mapper
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
 		lv2:index 0 ;
-		lv2:symbol "event_int" ;
+		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
+	] , [
+	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 1 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
 		lv2:designation lv2:control ;
 	] , [
 	# input control ports
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "mode" ;
 		lv2:name "Mode" ;
 		lv2:default 1 ;
@@ -172,16 +182,6 @@ chim:mapper
 		lv2:scalePoint [ rdfs:label "3rd-Order" ;		rdf:value 3 ] ;
 		lv2:scalePoint [ rdfs:label "4th-Order" ;		rdf:value 4 ] ;
 		lv2:scalePoint [ rdfs:label "5th-Order" ;		rdf:value 5 ] ;
-	] , [
-	# output event port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
-		lv2:index 2 ;
-		lv2:symbol "event_out" ;
-		lv2:name "Event Output" ;
-		lv2:designation lv2:control ;
 	] .
 
 # Injector Plugin
@@ -240,10 +240,20 @@ chim:simulator
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
 	] , [
+	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 1 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
+	] , [
 	# input control port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
 		lv2:default 128 ;
@@ -259,16 +269,6 @@ chim:simulator
 		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
 		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
 		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
-	] , [
-	# output event port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
-		lv2:index 2 ;
-		lv2:symbol "event_out" ;
-		lv2:name "Event Output" ;
-		lv2:designation lv2:control ;
 	] .
 
 # Simulator UI
@@ -327,10 +327,20 @@ chim:visualizer
 		lv2:name "Event Input" ;
 		lv2:designation lv2:control ;
 	] , [
+	# input event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 1 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
+	] , [
 	# input control ports
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
 		lv2:default 128 ;
@@ -349,7 +359,7 @@ chim:visualizer
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 3 ;
 		lv2:symbol "fps" ;
 		lv2:name "FPS" ;
 		lv2:default 30 ;
@@ -363,7 +373,7 @@ chim:visualizer
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "notify" ;
 		lv2:name "Notify" ;
 	] .
@@ -388,10 +398,20 @@ chim:control_out
 		lv2:name "Event Input" ;
 		lv2:designation lv2:control ;
 	] , [
+	# output event port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 1 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
+	] , [
 	# output control ports
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "gate" ;
 		lv2:name "Gate" ;
 		lv2:default 0.0 ;
@@ -399,7 +419,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 3 ;
 		lv2:symbol "id" ;
 		lv2:name "Blob ID" ;
 		lv2:default 0.0 ;
@@ -409,7 +429,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "north" ;
 		lv2:name "North Polarity" ;
 		lv2:default 0.0 ;
@@ -417,7 +437,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 4 ;
+		lv2:index 5 ;
 		lv2:symbol "south" ;
 		lv2:name "South Polarity" ;
 		lv2:default 0.0 ;
@@ -425,7 +445,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 5 ;
+		lv2:index 6 ;
 		lv2:symbol "position_x" ;
 		lv2:name "Position x" ;
 		lv2:default 0.0 ;
@@ -434,7 +454,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 6 ;
+		lv2:index 7 ;
 		lv2:symbol "position_z" ;
 		lv2:name "Position z" ;
 		lv2:default 0.0 ;
@@ -443,7 +463,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 7 ;
+		lv2:index 8 ;
 		lv2:symbol "velocity_x" ;
 		lv2:name "Velocity X" ;
 		lv2:default 0.0 ;
@@ -452,7 +472,7 @@ chim:control_out
 	] , [
 	  a lv2:OutputPort ,
 			lv2:ControlPort ;
-		lv2:index 8 ;
+		lv2:index 9 ;
 		lv2:symbol "velocity_z" ;
 		lv2:name "Velocity Z" ;
 		lv2:default 0.0 ;
@@ -476,13 +496,23 @@ chim:midi_out
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
 		lv2:index 0 ;
-		lv2:symbol "event_int" ;
+		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
+		lv2:designation lv2:control ;
+	] , [
+	# output midi port
+	  a lv2:OutputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports midi:MidiEvent ;
+		lv2:index 1 ;
+		lv2:symbol "midi_out" ;
+		lv2:name "MIDI Output" ;
 		lv2:designation lv2:control ;
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "sensors" ;
 		lv2:name "Sensors" ;
 		lv2:default 128 ;
@@ -501,7 +531,7 @@ chim:midi_out
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 3 ;
 		lv2:symbol "octave" ;
 		lv2:name "Octave" ;
 		lv2:default 2.0 ;
@@ -512,23 +542,13 @@ chim:midi_out
 	] , [
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "controller" ;
 		lv2:name "Controller" ;
 		lv2:default 7.0 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 127.0 ;
 		lv2:portProperty lv2:integer ;
-	] , [
-	# output midi port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports midi:MidiEvent ;
-		lv2:index 4 ;
-		lv2:symbol "midi_out" ;
-		lv2:name "MIDI Output" ;
-		lv2:designation lv2:control ;
 	] .
 
 # Osc Plugin
@@ -608,28 +628,20 @@ chim:comm
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 
 	lv2:port [
-	# input control port
-	  a lv2:InputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		lv2:index 0 ;
-		lv2:symbol "control" ;
-		lv2:name "Control" ;
-		rsz:minimumSize 4096 ;
-	] , [
-	# output notify port
+	# output event port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		lv2:index 1 ;
-		lv2:symbol "notify" ;
-		lv2:name "Notify" ;
-		rsz:minimumSize 4096 ;
+		atom:supports atom:Object ;
+		lv2:index 0 ;
+		lv2:symbol "event_out" ;
+		lv2:name "Event Output" ;
+		lv2:designation lv2:control ;
 	] , [
 	# reset input port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 1 ;
 		lv2:symbol "reset" ;
 		lv2:name "TUIO2 Reset" ;
 		lv2:default 0.0 ;
@@ -640,7 +652,7 @@ chim:comm
 	# through input port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 2 ;
 		lv2:symbol "through" ;
 		lv2:name "OSC Through" ;
 		lv2:default 0.0 ;
@@ -648,13 +660,23 @@ chim:comm
 		lv2:maximum 1.0 ;
 		lv2:portProperty lv2:toggled ;
 	] , [
-	# output event port
+	# input control port
+	  a lv2:InputPort ,
+			atom:AtomPort ;
+		atom:bufferType atom:Sequence ;
+		atom:supports atom:Object ;
+		lv2:index 3 ;
+		lv2:symbol "control" ;
+		lv2:name "Control" ;
+		rsz:minimumSize 4096 ;
+	] , [
+	# output notify port
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
 		lv2:index 4 ;
-		lv2:symbol "event_out" ;
-		lv2:name "Event Output" ;
-		lv2:designation lv2:control ;
+		lv2:symbol "notify" ;
+		lv2:name "Notify" ;
+		rsz:minimumSize 4096 ;
 	] .

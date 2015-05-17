@@ -25,6 +25,7 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	const LV2_Atom_Sequence *event_in;
+	LV2_Atom_Sequence *event_out;
 	LV2_Atom_Sequence *notify;
 	const float *sensors;
 	const float *fps;
@@ -78,12 +79,15 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->sensors = (const float *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->fps = (const float *)data;
+			handle->sensors = (const float *)data;
 			break;
 		case 3:
+			handle->fps = (const float *)data;
+			break;
+		case 4:
 			handle->notify = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -103,6 +107,10 @@ static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
+
+	// clone event_in to event_out
+	memcpy(handle->event_out, handle->event_in,
+		sizeof(LV2_Atom) + handle->event_in->atom.size);
 
 	// update sample count threshold
 	handle->thresh = handle->rate / *handle->fps;

@@ -72,10 +72,10 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->mode = (const float *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->event_out = (LV2_Atom_Sequence *)data;
+			handle->mode = (const float *)data;
 			break;
 		default:
 			break;
