@@ -245,7 +245,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	if(i == 1)
+	if(i == 2)
 	{
 		uint32_t sensors = *(float *)buf;
 
@@ -255,7 +255,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 			_dump_fill(ui);
 		}
 	}
-	else if( (i == 3) && (urid == ui->uris.event_transfer) )
+	else if( (i == 4) && (urid == ui->uris.event_transfer) )
 	{
 		const LV2_Atom *atom = buf;
 

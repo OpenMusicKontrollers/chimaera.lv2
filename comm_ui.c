@@ -264,7 +264,7 @@ _arg_changed(UI *ui, intro_arg_t *arg)
 
 	osc_forge_message_pop(oforge, forge, &obj_frame, &tup_frame);
 	
-	ui->write_function(ui->controller, 0, sizeof(LV2_Atom) + ui->atom.size,
+	ui->write_function(ui->controller, 3, sizeof(LV2_Atom) + ui->atom.size,
 		ui->uris.event_transfer, ui->buf);
 }
 
@@ -610,7 +610,7 @@ _comm_message_send(UI *ui, const char *path, const char *fmt, ...)
 
 	va_end(args);
 
-	ui->write_function(ui->controller, 0, sizeof(LV2_Atom) + ui->atom.size,
+	ui->write_function(ui->controller, 3, sizeof(LV2_Atom) + ui->atom.size,
 		ui->uris.event_transfer, ui->buf);
 }
 
@@ -914,7 +914,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	if(i == 1) // notify
+	if(i == 4) // notify
 	{
 		osc_atom_unpack(&ui->oforge, buf, _comm_recv, ui);
 	}

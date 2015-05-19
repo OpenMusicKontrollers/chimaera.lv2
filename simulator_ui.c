@@ -265,8 +265,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	// do nothing
-	if(i == 1)
+	if(i == 2)
 	{
 		int sensors = *(float *)buf;
 		ui->units = sensors / 16;
