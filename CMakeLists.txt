@@ -36,7 +36,6 @@ add_library(chimaera MODULE
 	libosc/osc.c
 
 	libosc_stream/osc_stream.c
-	libosc_stream/osc_stream_slip.c
 	libosc_stream/osc_stream_udp.c
 	libosc_stream/osc_stream_tcp.c
 	libosc_stream/osc_stream_pipe.c
