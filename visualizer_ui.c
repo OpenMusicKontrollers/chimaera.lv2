@@ -43,6 +43,10 @@ struct _UI {
 	LV2UI_Write_Function write_function;
 	LV2UI_Controller controller;
 
+	LV2UI_Port_Map *port_map;
+	uint32_t sensor_port;
+	uint32_t notify_port;
+
 	uint32_t sensors;
 	int32_t values [160];
 
@@ -206,6 +210,8 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;
+		else if(!strcmp(features[i]->URI, LV2_UI__portMap))
+			ui->port_map = (LV2UI_Port_Map *)features[i]->data;
   }
 
 	if(!ui->map)
@@ -214,6 +220,16 @@ instantiate(const LV2UI_Descriptor *descriptor,
 		free(ui);
 		return NULL;
 	}
+	if(!ui->port_map)
+	{
+		fprintf(stderr, "%s: Host does not support ui:portMap\n", descriptor->URI);
+		free(ui);
+		return NULL;
+	}
+
+	// query port index of "control" port
+	ui->sensor_port = ui->port_map->port_index(ui->port_map->handle, "sensors");
+	ui->notify_port = ui->port_map->port_index(ui->port_map->handle, "notify");
 
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	chimaera_forge_init(&ui->cforge, ui->map);
@@ -245,7 +261,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	if(i == 2)
+	if(i == ui->sensor_port)
 	{
 		uint32_t sensors = *(float *)buf;
 
@@ -255,7 +271,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 			_dump_fill(ui);
 		}
 	}
-	else if( (i == 4) && (urid == ui->uris.event_transfer) )
+	else if( (i == ui->notify_port) && (urid == ui->uris.event_transfer) )
 	{
 		const LV2_Atom *atom = buf;
 

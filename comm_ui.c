@@ -55,6 +55,10 @@ struct _UI {
 	LV2UI_Write_Function write_function;
 	LV2UI_Controller controller;
 
+	LV2UI_Port_Map *port_map;
+	uint32_t control_port;
+	uint32_t notify_port;
+
 	Evas_Object *pane;
 	Evas_Object *intro;
 	int intro_complete;
@@ -264,7 +268,7 @@ _arg_changed(UI *ui, intro_arg_t *arg)
 
 	osc_forge_message_pop(oforge, forge, &obj_frame, &tup_frame);
 	
-	ui->write_function(ui->controller, 3, sizeof(LV2_Atom) + ui->atom.size,
+	ui->write_function(ui->controller, ui->control_port, sizeof(LV2_Atom) + ui->atom.size,
 		ui->uris.event_transfer, ui->buf);
 }
 
@@ -610,7 +614,7 @@ _comm_message_send(UI *ui, const char *path, const char *fmt, ...)
 
 	va_end(args);
 
-	ui->write_function(ui->controller, 3, sizeof(LV2_Atom) + ui->atom.size,
+	ui->write_function(ui->controller, ui->control_port, sizeof(LV2_Atom) + ui->atom.size,
 		ui->uris.event_transfer, ui->buf);
 }
 
@@ -688,7 +692,19 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;
+		else if(!strcmp(features[i]->URI, LV2_UI__portMap))
+			ui->port_map = (LV2UI_Port_Map *)features[i]->data;
   }
+	if(!ui->port_map)
+	{
+		fprintf(stderr, "%s: Host does not support ui:portMap\n", descriptor->URI);
+		free(ui);
+		return NULL;
+	}
+
+	// query port index of "control" port
+	ui->control_port = ui->port_map->port_index(ui->port_map->handle, "control");
+	ui->notify_port = ui->port_map->port_index(ui->port_map->handle, "notify");
 
 	if(!ui->map)
 	{
@@ -914,7 +930,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 {
 	UI *ui = handle;
 
-	if(i == 4) // notify
+	if(i == ui->notify_port) // notify
 	{
 		osc_atom_unpack(&ui->oforge, buf, _comm_recv, ui);
 	}

@@ -207,19 +207,20 @@ chim:injector
 		
 # Simulator UI
 chim:simulator_eo
-	a ui:EoUI .
+	a ui:EoUI ;
+	lv2:requiredFeature ui:portMap .
 chim:simulator_ui
 	a ui:UI ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:simulator_x11
 	a ui:X11UI ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:simulator_kx
 	a kx:Widget ;
-	lv2:requiredFeature kx:Host .
+	lv2:requiredFeature kx:Host, ui:portMap .
 
 # Simulator Plugin
 chim:simulator
@@ -278,7 +279,8 @@ chim:visualizer_eo
 		ui:plugin chim:visualizer ;
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
-	] .
+	] ;
+	lv2:requiredFeature ui:portMap .
 chim:visualizer_ui
 	a ui:UI ;
 	ui:portNotification [
@@ -286,7 +288,7 @@ chim:visualizer_ui
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:visualizer_x11
 	a ui:X11UI ;
@@ -295,7 +297,7 @@ chim:visualizer_x11
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:visualizer_kx
@@ -305,7 +307,7 @@ chim:visualizer_kx
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature kx:Host .
+	lv2:requiredFeature kx:Host, ui:portMap .
 
 # Visualizer Plugin
 chim:visualizer
@@ -589,7 +591,8 @@ chim:comm_eo
 		ui:plugin chim:comm ;
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
-	] .
+	] ;
+	lv2:requiredFeature ui:portMap .
 chim:comm_ui
 	a ui:UI ;
 	ui:portNotification [
@@ -597,7 +600,7 @@ chim:comm_ui
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:comm_x11
 	a ui:X11UI ;
@@ -606,7 +609,7 @@ chim:comm_x11
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:comm_kx
@@ -616,7 +619,7 @@ chim:comm_kx
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature kx:Host .
+	lv2:requiredFeature kx:Host, ui:portMap .
 
 # Comm Plugin
 chim:comm
