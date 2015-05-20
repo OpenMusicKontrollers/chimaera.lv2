@@ -59,7 +59,6 @@
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
-#define CHIMAERA_INJECTOR_URI			CHIMAERA_URI"#injector"
 #define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
 
 const LV2_Descriptor dummy_in;
@@ -72,7 +71,6 @@ const LV2_Descriptor midi_out;
 const LV2_Descriptor osc_out;
 const LV2_Descriptor simulator;
 const LV2_Descriptor visualizer;
-const LV2_Descriptor injector;
 const LV2_Descriptor comm;
 
 // ui plugins uris

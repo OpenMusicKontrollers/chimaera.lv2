@@ -33,15 +33,6 @@ set(LIBS ${LIBS} ${UV_LDFLAGS})
 option(CHIMAERA_UI_PLUGINS "Build Chimaera UI plugins" ON)
 
 add_library(chimaera MODULE
-	libosc/osc.c
-
-	libosc_stream/osc_stream.c
-	libosc_stream/osc_stream_udp.c
-	libosc_stream/osc_stream_tcp.c
-	libosc_stream/osc_stream_pipe.c
-
-	varchunk/varchunk.c
-
 	cjson/cJSON.c
 
 	chimaera.c
@@ -49,7 +40,6 @@ add_library(chimaera MODULE
 	mapper.c
 	simulator.c
 	visualizer.c
-	injector.c
 	comm.c
 	control_out.c
 	midi_out.c

@@ -184,27 +184,6 @@ chim:mapper
 		lv2:scalePoint [ rdfs:label "5th-Order" ;		rdf:value 5 ] ;
 	] .
 
-# Injector Plugin
-chim:injector
-	a lv2:Plugin,
-		lv2:ConverterPlugin;
-	doap:name "Chimaera Injector" ;
-	doap:license lic:Artistic-2.0 ;
-	lv2:project proj:chimaera ;
-	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
-
-	lv2:port [
-	# input event port
-	  a lv2:OutputPort ,
-			atom:AtomPort ;
-		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
-		lv2:index 0 ;
-		lv2:symbol "osc_out" ;
-		lv2:name "OSC Output" ;
-		lv2:designation lv2:control ;
-	] .
-		
 # Simulator UI
 chim:simulator_eo
 	a ui:EoUI ;

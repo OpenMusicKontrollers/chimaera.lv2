@@ -56,11 +56,6 @@ chim:osc_out
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
-chim:injector
-	a lv2:Plugin ;
-	lv2:binary <chimaera@LIB_EXT@> ;
-	rdfs:seeAlso <chimaera.ttl> .
-
 chim:simulator
 	a lv2:Plugin ;
 	lv2:binary <chimaera@LIB_EXT@> ;

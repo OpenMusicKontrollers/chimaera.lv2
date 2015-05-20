@@ -28,12 +28,12 @@
 
 #define LV2_OSC_PREFIX						"http://opensoundcontrol.org"
 
-#define LV2_OSC__OscEvent					LV2_OSC_PREFIX"#OscEvent"
-#define LV2_OSC__OscBundle				LV2_OSC_PREFIX"#OscBundle"
-#define LV2_OSC__OscTimestamp			LV2_OSC_PREFIX"#OscTimestamp"
-#define LV2_OSC__OscMessage				LV2_OSC_PREFIX"#OscMessage"
-#define LV2_OSC__OscPath					LV2_OSC_PREFIX"#OscPath"
-#define LV2_OSC__OscFormat				LV2_OSC_PREFIX"#OscFormat"
+#define LV2_OSC__OscEvent					LV2_OSC_PREFIX"#event"
+#define LV2_OSC__OscBundle				LV2_OSC_PREFIX"#bundle"
+#define LV2_OSC__OscTimestamp			LV2_OSC_PREFIX"#timestamp"
+#define LV2_OSC__OscMessage				LV2_OSC_PREFIX"#message"
+#define LV2_OSC__OscPath					LV2_OSC_PREFIX"#path"
+#define LV2_OSC__OscFormat				LV2_OSC_PREFIX"#format"
 
 typedef struct _osc_forge_t osc_forge_t;
 
@@ -189,6 +189,9 @@ osc_atom_message_unpack(osc_forge_t *oforge, uint64_t timestamp,
 	};
 	
 	lv2_atom_object_query(obj, q);
+
+	if(!body)
+		return;
 
 	const char *path_str = path ? LV2_ATOM_BODY_CONST(path) : NULL;
 	const char *fmt_str = fmt ? LV2_ATOM_BODY_CONST(fmt) : NULL;

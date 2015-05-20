@@ -43,8 +43,6 @@ lv2_descriptor(uint32_t index)
 		case 9:
 			return &dump_in;
 		case 10:
-			return &injector;
-		case 11:
 			return &comm;
 		default:
 			return NULL;

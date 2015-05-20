@@ -73,7 +73,7 @@ struct _handle_t {
 		int pos;
 
 		uint32_t fid;
-		osc_data_t last;
+		osc_time_t last;
 		uint16_t width;
 		uint16_t height;
 		int ignore;
@@ -189,7 +189,7 @@ _data_send_adv(void *data)
 
 static int
 _comm_resolve(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -200,7 +200,18 @@ _comm_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _comm_timeout(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_comm_error(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -211,7 +222,7 @@ _comm_timeout(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _comm_connect(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -222,7 +233,7 @@ _comm_connect(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _comm_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -233,13 +244,13 @@ _comm_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 
 static void
 _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size)
+	const osc_data_t *buf, size_t size)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	LV2_Atom_Forge_Frame obj_frame;
 	LV2_Atom_Forge_Frame tup_frame;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 
 	lv2_atom_forge_frame_time(forge, 0); //TODO
 	osc_forge_message_push(&handle->oforge, forge, &obj_frame, &tup_frame,
@@ -330,7 +341,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			}
 			case 'm':
 			{
-				uint8_t *m;
+				const uint8_t *m;
 				ptr = osc_get_midi(ptr, &m);
 				osc_forge_midi(&handle->oforge, forge, m);
 				break;
@@ -342,7 +353,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 
 static int
 _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -362,7 +373,7 @@ _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 
 static int
 _data_resolve(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -373,7 +384,18 @@ _data_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _data_timeout(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	//TODO
+
+	return 1;
+}
+
+static int
+_data_error(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -384,7 +406,7 @@ _data_timeout(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _data_connect(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -395,7 +417,7 @@ _data_connect(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _data_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -406,7 +428,7 @@ _data_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _data_through(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -418,11 +440,11 @@ _data_through(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	uint32_t fid;
 	osc_time_t last;
 
@@ -456,13 +478,13 @@ _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
 	int has_derivatives = strlen(fmt) == 11;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	tuio2_ref_t *ref;
 
 	if(handle->tuio2.ignore)
@@ -504,11 +526,11 @@ _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	int n;
 	uint32_t sid;
@@ -599,13 +621,13 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
 	int has_derivatives = strlen(fmt) == 7;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
@@ -644,13 +666,13 @@ _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
 	int is_redundant = strlen(fmt) == 3;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
@@ -675,7 +697,7 @@ _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
@@ -684,7 +706,7 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 		? (strlen(fmt) == 7)
 		: (strlen(fmt) == 5);
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
@@ -726,11 +748,11 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	
 	cev.state = CHIMAERA_STATE_IDLE;
@@ -752,12 +774,12 @@ _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
 
 static int
 _dump(osc_time_t timestamp, const char *path, const char *fmt,
-	osc_data_t *buf, size_t size, void *data)
+	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	osc_data_t *ptr = buf;
+	const osc_data_t *ptr = buf;
 	uint32_t sensors;
 	int32_t values[160];
 
@@ -766,7 +788,7 @@ _dump(osc_time_t timestamp, const char *path, const char *fmt,
 
 	ptr = osc_get_int32(ptr, (int32_t *)&fid);
 	ptr = osc_get_blob(ptr, &b);
-	int16_t *payload = b.payload;
+	const int16_t *payload = b.payload;
 
 	sensors = b.size / sizeof(int16_t);
 	for(int i=0; i<sensors; i++)
@@ -784,6 +806,7 @@ _dump(osc_time_t timestamp, const char *path, const char *fmt,
 static const osc_method_t comm_methods [] = {
 	{"/stream/resolve", "", _comm_resolve},
 	{"/stream/timeout", "", _comm_timeout},
+	{"/stream/error", "ss", _comm_error},
 	{"/stream/connect", "", _comm_connect},
 	{"/stream/disconnect", "", _comm_disconnect},
 
@@ -795,6 +818,7 @@ static const osc_method_t comm_methods [] = {
 static const osc_method_t data_methods [] = {
 	{"/stream/resolve", "", _data_resolve},
 	{"/stream/timeout", "", _data_timeout},
+	{"/stream/error", "ss", _data_error},
 	{"/stream/connect", "", _data_connect},
 	{"/stream/disconnect", "", _data_disconnect},
 
@@ -833,7 +857,7 @@ _ui_recv(uint64_t timestamp, const char *path, const char *fmt,
 	if((buf = varchunk_write_request(handle->comm.to_worker, reserve)))
 	{
 		osc_data_t *ptr = buf;
-		osc_data_t *end = buf + reserve;
+		const osc_data_t *end = buf + reserve;
 
 		ptr = osc_set_path(ptr, end, path);
 		ptr = osc_set_fmt(ptr, end, fmt);
@@ -1067,7 +1091,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	uint32_t capacity;
 	LV2_Atom_Forge_Frame frame;
-	const void *ptr;
+	const osc_data_t *ptr;
 	size_t size;
 
 	int reset = *handle->reset_in > 0.f ? 1 : 0;
@@ -1101,8 +1125,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size,
-			(osc_method_t *)comm_methods, NULL, NULL, handle);
+		osc_dispatch_method(OSC_IMMEDIATE, ptr, size,
+			comm_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
 	}
@@ -1114,8 +1138,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->data.from_worker, &size)))
 	{
-		osc_dispatch_method(OSC_IMMEDIATE, (osc_data_t *)ptr, size,
-			(osc_method_t *)data_methods, NULL, NULL, handle);
+		osc_dispatch_method(OSC_IMMEDIATE, ptr, size,
+			data_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->data.from_worker);
 	}
