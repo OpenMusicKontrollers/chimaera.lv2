@@ -56,9 +56,6 @@ struct _tuio2_ref_t {
 
 struct _handle_t {
 	LV2_URID_Map *map;
-	struct {
-		LV2_URID osc_event;
-	} uris;
 	chimaera_forge_t cforge;
 	osc_forge_t oforge;
 
@@ -247,14 +244,12 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	LV2_Atom_Forge_Frame obj_frame;
-	LV2_Atom_Forge_Frame tup_frame;
+	LV2_Atom_Forge_Frame frame [2];
 
 	const osc_data_t *ptr = buf;
 
 	lv2_atom_forge_frame_time(forge, 0); //TODO
-	osc_forge_message_push(&handle->oforge, forge, &obj_frame, &tup_frame,
-		path, fmt);
+	osc_forge_message_push(&handle->oforge, forge, frame, path, fmt);
 
 	for(const char *type = fmt; *type; type++)
 		switch(*type)
@@ -262,52 +257,52 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			case 'i':
 			{
 				int32_t i;
-				ptr = osc_get_int32(ptr, &i);
-				osc_forge_int32(&handle->oforge, forge, i);
+				if((ptr = osc_get_int32(ptr, &i)))
+					osc_forge_int32(&handle->oforge, forge, i);
 				break;
 			}
 			case 'f':
 			{
 				float f;
-				ptr = osc_get_float(ptr, &f);
-				osc_forge_float(&handle->oforge, forge, f);
+				if((ptr = osc_get_float(ptr, &f)))
+					osc_forge_float(&handle->oforge, forge, f);
 				break;
 			}
 			case 's':
 			case 'S':
 			{
 				const char *s;
-				ptr = osc_get_string(ptr, &s);
-				osc_forge_string(&handle->oforge, forge, s);
+				if((ptr = osc_get_string(ptr, &s)))
+					osc_forge_string(&handle->oforge, forge, s);
 				break;
 			}
 			case 'b':
 			{
 				osc_blob_t b;
-				ptr = osc_get_blob(ptr, &b);
-				osc_forge_blob(&handle->oforge, forge, b.size, b.payload);
+				if((ptr = osc_get_blob(ptr, &b)))
+					osc_forge_blob(&handle->oforge, forge, b.size, b.payload);
 				break;
 			}
 
 			case 'h':
 			{
 				int64_t h;
-				ptr = osc_get_int64(ptr, &h);
-				osc_forge_int64(&handle->oforge, forge, h);
+				if((ptr = osc_get_int64(ptr, &h)))
+					osc_forge_int64(&handle->oforge, forge, h);
 				break;
 			}
 			case 'd':
 			{
 				double d;
-				ptr = osc_get_double(ptr, &d);
-				osc_forge_double(&handle->oforge, forge, d);
+				if((ptr = osc_get_double(ptr, &d)))
+					osc_forge_double(&handle->oforge, forge, d);
 				break;
 			}
 			case 't':
 			{
 				uint64_t t;
-				ptr = osc_get_timetag(ptr, &t);
-				osc_forge_timestamp(&handle->oforge, forge, t);
+				if((ptr = osc_get_timetag(ptr, &t)))
+					osc_forge_timestamp(&handle->oforge, forge, t);
 				break;
 			}
 
@@ -335,20 +330,20 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			case 'c':
 			{
 				char c;
-				ptr = osc_get_char(ptr, &c);
-				osc_forge_char(&handle->oforge, forge, c);
+				if((ptr = osc_get_char(ptr, &c)))
+					osc_forge_char(&handle->oforge, forge, c);
 				break;
 			}
 			case 'm':
 			{
 				const uint8_t *m;
-				ptr = osc_get_midi(ptr, &m);
-				osc_forge_midi(&handle->oforge, forge, m);
+				if((ptr = osc_get_midi(ptr, &m)))
+					osc_forge_midi(&handle->oforge, forge, m);
 				break;
 			}
 		}
 
-	osc_forge_message_pop(&handle->oforge, forge, &obj_frame, &tup_frame);
+	osc_forge_message_pop(&handle->oforge, forge, frame);
 }
 
 static int
@@ -847,11 +842,11 @@ static const osc_method_t data_methods [] = {
 // rt-thread
 static void
 _ui_recv(uint64_t timestamp, const char *path, const char *fmt,
-	const LV2_Atom_Tuple *body, void *data)
+	const LV2_Atom_Tuple *args, void *data)
 {
 	handle_t *handle = data;
 
-	size_t reserve = osc_strlen(path) + osc_strlen(fmt) + body->atom.size;
+	size_t reserve = osc_strlen(path) + osc_strlen(fmt) + args->atom.size;
 
 	osc_data_t *buf;
 	if((buf = varchunk_write_request(handle->comm.to_worker, reserve)))
@@ -862,9 +857,9 @@ _ui_recv(uint64_t timestamp, const char *path, const char *fmt,
 		ptr = osc_set_path(ptr, end, path);
 		ptr = osc_set_fmt(ptr, end, fmt);
 
-		const LV2_Atom *itr = lv2_atom_tuple_begin(body);
+		const LV2_Atom *itr = lv2_atom_tuple_begin(args);
 		for(const char *type = fmt;
-			*type && !lv2_atom_tuple_is_end(LV2_ATOM_BODY(body), body->atom.size, itr);
+			*type && !lv2_atom_tuple_is_end(LV2_ATOM_BODY(args), args->atom.size, itr);
 			type++, itr = lv2_atom_tuple_next(itr))
 		{
 			switch(*type)
@@ -880,7 +875,7 @@ _ui_recv(uint64_t timestamp, const char *path, const char *fmt,
 					ptr = osc_set_string(ptr, end, LV2_ATOM_BODY_CONST(itr));
 					break;
 				case 'b':
-					ptr = osc_set_blob(ptr, end, itr->size, LV2_ATOM_BODY(itr));
+					ptr = osc_set_blob(ptr, end, itr->size, LV2_ATOM_BODY_CONST(itr));
 					break;
 				
 				case 'h':
@@ -903,7 +898,7 @@ _ui_recv(uint64_t timestamp, const char *path, const char *fmt,
 					ptr = osc_set_char(ptr, end, ((const LV2_Atom_Int *)itr)->body);
 					break;
 				case 'm':
-					ptr = osc_set_midi(ptr, end, LV2_ATOM_BODY(itr));
+					ptr = osc_set_midi(ptr, end, LV2_ATOM_BODY_CONST(itr));
 					break;
 			}
 		}
@@ -937,7 +932,6 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		return NULL;
 	}
 	
-	handle->uris.osc_event = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
 	chimaera_forge_init(&handle->cforge, handle->map);
 	osc_forge_init(&handle->oforge, handle->map);
 	CHIMAERA_DICT_INIT(handle->dummy.dict, handle->dummy.ref);
@@ -1114,7 +1108,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_ATOM_SEQUENCE_FOREACH(handle->control, ev)
 	{
 		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-		osc_atom_unpack(&handle->oforge, obj, _ui_recv, handle);
+		osc_atom_event_unroll(&handle->oforge, obj, _ui_recv, handle);
 	}
 	if(handle->control->atom.size > sizeof(LV2_Atom_Sequence_Body))
 		uv_async_send(&handle->flush);

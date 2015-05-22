@@ -51,6 +51,7 @@ struct _UI {
 		LV2_URID event_transfer;
 	} uris;
 	osc_forge_t oforge;
+	LV2_Atom_Forge forge;
 
 	LV2UI_Write_Function write_function;
 	LV2UI_Controller controller;
@@ -219,11 +220,10 @@ _arg_changed(UI *ui, intro_arg_t *arg)
 	char fmt [argn + 2];
 
 	osc_forge_t *oforge = &ui->oforge;
-	LV2_Atom_Forge *forge = &oforge->forge;
+	LV2_Atom_Forge *forge = &ui->forge;
 	lv2_atom_forge_set_buffer(forge, (void *)ui->buf, BUF_SIZE);
 
-	LV2_Atom_Forge_Frame obj_frame;
-	LV2_Atom_Forge_Frame tup_frame;
+	LV2_Atom_Forge_Frame frame [2];
 
 	// fill format
 	char *ptr = fmt;
@@ -237,8 +237,7 @@ _arg_changed(UI *ui, intro_arg_t *arg)
 
 	printf("_arg_changed: %s %s\n", path->valuestring, fmt);
 
-	osc_forge_message_push(oforge, forge, &obj_frame, &tup_frame,
-		path->valuestring, fmt);
+	osc_forge_message_push(oforge, forge, frame, path->valuestring, fmt);
 
 	// uid
 	osc_forge_int32(oforge, forge, ui->uid++);
@@ -266,7 +265,7 @@ _arg_changed(UI *ui, intro_arg_t *arg)
 		}
 	}
 
-	osc_forge_message_pop(oforge, forge, &obj_frame, &tup_frame);
+	osc_forge_message_pop(oforge, forge, frame);
 	
 	ui->write_function(ui->controller, ui->control_port, sizeof(LV2_Atom) + ui->atom.size,
 		ui->uris.event_transfer, ui->buf);
@@ -604,7 +603,7 @@ _content_get(eo_ui_t *eoui)
 static inline void
 _comm_message_send(UI *ui, const char *path, const char *fmt, ...)
 {
-	LV2_Atom_Forge *forge = &ui->oforge.forge;
+	LV2_Atom_Forge *forge = &ui->forge;
 	lv2_atom_forge_set_buffer(forge, (void *)ui->buf, BUF_SIZE);
 
 	va_list args;
@@ -715,6 +714,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 
 	ui->uris.event_transfer = ui->map->map(ui->map->handle, LV2_ATOM__eventTransfer);
 	osc_forge_init(&ui->oforge, ui->map);
+	lv2_atom_forge_init(&ui->forge, ui->map);
 
 	if(eoui_instantiate(eoui, descriptor, plugin_uri, bundle_path, write_function,
 		controller, widget, features))
@@ -932,7 +932,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 
 	if(i == ui->notify_port) // notify
 	{
-		osc_atom_unpack(&ui->oforge, buf, _comm_recv, ui);
+		osc_atom_event_unroll(&ui->oforge, buf, _comm_recv, ui);
 	}
 }
 

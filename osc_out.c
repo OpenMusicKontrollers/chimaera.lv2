@@ -28,12 +28,9 @@ typedef struct _handle_t handle_t;
 
 struct _handle_t {
 	LV2_URID_Map *map;
-	struct {
-		LV2_URID osc_OscEvent;
-	} uris;
 	chimaera_forge_t cforge;
-
-	osc_data_t buf [BUF_SIZE];
+	osc_forge_t oforge;
+	LV2_Atom_Forge forge;
 
 	const LV2_Atom_Sequence *event_in;
 	LV2_Atom_Sequence *osc_out;
@@ -59,8 +56,9 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		return NULL;
 	}
 
-	handle->uris.osc_OscEvent = handle->map->map(handle->map->handle, LV2_OSC__OscEvent);
+	osc_forge_init(&handle->oforge, handle->map);
 	chimaera_forge_init(&handle->cforge, handle->map);
+	lv2_atom_forge_init(&handle->forge, handle->map);
 
 	return handle;
 }
@@ -90,82 +88,41 @@ activate(LV2_Handle instance)
 	//nothing
 }
 
-static inline void
-_osc_event(handle_t *handle, int64_t frames, osc_data_t *o, size_t len)
-{
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-		
-	LV2_Atom osc_atom;
-	osc_atom.type = handle->uris.osc_OscEvent;
-	osc_atom.size = len;
-		
-	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_raw(forge, &osc_atom, sizeof(LV2_Atom));
-	lv2_atom_forge_raw(forge, o, len);
-	lv2_atom_forge_pad(forge, len);
-}
-
 static void
-_osc_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
+_osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
+	const chimaera_event_t *cev)
 {
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/s_new", "siiiiisisi",
+	osc_forge_message_vararg(&handle->oforge, forge,
+		"/s_new", "siiiiisisi",
 		"base", cev->sid, 0, cev->gid,
 		4, cev->pid,
 		"out", cev->gid,
 		"gate", 1);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
 }
 
 static void
-_osc_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
+_osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
+	const chimaera_event_t *cev)
 {
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/n_set", "isi",
+	osc_forge_message_vararg(&handle->oforge, forge,
+		"/n_set", "isi",
 		cev->sid,
 		"gate", 0);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
 }
 
 static void
-_osc_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
+_osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
+	const chimaera_event_t *cev)
 {
-	osc_data_t *buf = handle->buf;
-	osc_data_t *ptr = buf;
-	osc_data_t *end = buf + BUF_SIZE;
-
-	ptr = osc_set_vararg(ptr, end, "/n_setn", "iiiffff",
+	osc_forge_message_vararg(&handle->oforge, forge,
+		"/n_setn", "iiiffff",
 		cev->sid, 0, 4,
 		cev->x, cev->z, cev->X, cev->Z);
-
-	if(ptr)
-	{
-		size_t len = ptr - buf;
-		if(len > 0)
-			_osc_event(handle, frames, buf, len);
-	}
 }
 
 static void
-_osc_idle(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
+_osc_idle(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
+	const chimaera_event_t *cev)
 {
 	// do nothing
 }
@@ -177,7 +134,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->osc_out->atom.size;
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge *forge = &handle->forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
@@ -196,16 +153,16 @@ run(LV2_Handle instance, uint32_t nsamples)
 			switch(cev.state)
 			{
 				case CHIMAERA_STATE_ON:
-					_osc_on(handle, frames, &cev);
+					_osc_on(handle, forge, frames, &cev);
 					// fall-through
 				case CHIMAERA_STATE_SET:
-					_osc_set(handle, frames, &cev);
+					_osc_set(handle, forge, frames, &cev);
 					break;
 				case CHIMAERA_STATE_OFF:
-					_osc_off(handle, frames, &cev);
+					_osc_off(handle, forge, frames, &cev);
 					break;
 				case CHIMAERA_STATE_IDLE:
-					_osc_idle(handle, frames, &cev);
+					_osc_idle(handle, forge, frames, &cev);
 					break;
 			}
 		}
