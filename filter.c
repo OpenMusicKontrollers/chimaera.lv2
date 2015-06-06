@@ -145,7 +145,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
-	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))

@@ -110,16 +110,12 @@ activate(LV2_Handle instance)
 }
 
 static inline void
-_midi_event(handle_t *handle, int64_t frames, uint8_t *m, size_t len)
+_midi_event(handle_t *handle, int64_t frames, const uint8_t *m, size_t len)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 		
-	LV2_Atom midi_atom;
-	midi_atom.type = handle->uris.midi_MidiEvent;
-	midi_atom.size = len;
-		
 	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_raw(forge, &midi_atom, sizeof(LV2_Atom));
+	lv2_atom_forge_atom(forge, len, handle->uris.midi_MidiEvent);
 	lv2_atom_forge_raw(forge, m, len);
 	lv2_atom_forge_pad(forge, len);
 }
@@ -131,13 +127,13 @@ _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	if(!ref)
 		return;
 	
-	float val = handle->bot + cev->x * handle->ran;
+	const float val = handle->bot + cev->x * handle->ran;
 
-	uint8_t chn = cev->gid & 0x0f;
-	uint8_t key = floor(val);
-	uint8_t vel = 0x7f;
+	const uint8_t chn = cev->gid & 0x0f;
+	const uint8_t key = floor(val);
+	const uint8_t vel = 0x7f;
 
-	uint8_t note_on [3] = {
+	const uint8_t note_on [3] = {
 		0x90 | chn,
 		key,
 		vel
@@ -155,11 +151,11 @@ _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	if(!ref)
 		return;
 
-	uint8_t chn = ref->chn;
-	uint8_t key = ref->key;
-	uint8_t vel = 0x7f;
+	const uint8_t chn = ref->chn;
+	const uint8_t key = ref->key;
+	const uint8_t vel = 0x7f;
 
-	uint8_t note_off [3] = {
+	const uint8_t note_off [3] = {
 		0x80 | chn,
 		key,
 		vel
@@ -174,21 +170,21 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	if(!ref)
 		return;
 
-	uint8_t controller = *handle->controller;
-	float val = handle->bot + cev->x * handle->ran;
+	const uint8_t controller = *handle->controller;
+	const float val = handle->bot + cev->x * handle->ran;
 	
-	uint8_t chn = ref->chn;
-	uint8_t key = ref->key;
+	const uint8_t chn = ref->chn;
+	const uint8_t key = ref->key;
 
-	uint16_t bnd = (val-key) / handle->ran * 0x2000 + 0x1fff;
-	uint8_t bnd_msb = bnd >> 7;
-	uint8_t bnd_lsb = bnd & 0x7f;
+	const uint16_t bnd = (val-key) / handle->ran * 0x2000 + 0x1fff;
+	const uint8_t bnd_msb = bnd >> 7;
+	const uint8_t bnd_lsb = bnd & 0x7f;
 
-	uint16_t cnt = cev->z * 0x3fff;
-	uint8_t cnt_msb = cnt >> 7;
-	uint8_t cnt_lsb = cnt & 0x7f;
+	const uint16_t cnt = cev->z * 0x3fff;
+	const uint8_t cnt_msb = cnt >> 7;
+	const uint8_t cnt_lsb = cnt & 0x7f;
 
-	uint8_t bend [3] = {
+	const uint8_t bend [3] = {
 		0xe0 | chn,
 		bnd_lsb,
 		bnd_msb
@@ -197,7 +193,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 
 	if(controller <= 0x0d)
 	{
-		uint8_t control_lsb [3] = {
+		const uint8_t control_lsb [3] = {
 			0xb0 | chn,
 			0x20 | controller,
 			cnt_lsb
@@ -205,7 +201,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 		_midi_event(handle, frames, control_lsb, 3);
 	}
 
-	uint8_t control_msb [3] = {
+	const uint8_t control_msb [3] = {
 		0xb0 | chn,
 		controller,
 		cnt_msb
@@ -237,7 +233,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
-	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))

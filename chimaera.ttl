@@ -165,10 +165,29 @@ chim:mapper
 		lv2:name "Event Output" ;
 		lv2:designation lv2:control ;
 	] , [
-	# input control ports
+	# input control port
 	  a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 2 ;
+		lv2:symbol "sensors" ;
+		lv2:name "Sensors" ;
+		lv2:default 128 ;
+		lv2:minimum 48 ;
+		lv2:maximum 160 ;
+		lv2:portProperty lv2:integer ;
+		lv2:portProperty lv2:enumeration ;
+		lv2:scalePoint [ rdfs:label "S48" ; rdf:value 48 ] ;
+		lv2:scalePoint [ rdfs:label "S64" ; rdf:value 64 ] ;
+		lv2:scalePoint [ rdfs:label "S80" ; rdf:value 80 ] ;
+		lv2:scalePoint [ rdfs:label "S96" ; rdf:value 96 ] ;
+		lv2:scalePoint [ rdfs:label "S112" ; rdf:value 112 ] ;
+		lv2:scalePoint [ rdfs:label "S128" ; rdf:value 128 ] ;
+		lv2:scalePoint [ rdfs:label "S144" ; rdf:value 144 ] ;
+		lv2:scalePoint [ rdfs:label "S160" ; rdf:value 160 ] ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 3 ;
 		lv2:symbol "mode" ;
 		lv2:name "Mode" ;
 		lv2:default 1 ;

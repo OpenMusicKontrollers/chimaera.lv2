@@ -32,6 +32,7 @@ struct _handle_t {
 	float sign;
 
 	const LV2_Atom_Sequence *event_in;
+	const float *sensors;
 	const float *mode;
 	LV2_Atom_Sequence *event_out;
 };
@@ -75,6 +76,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
+			handle->sensors = (const float *)data;
+			break;
+		case 3:
 			handle->mode = (const float *)data;
 			break;
 		default:
@@ -96,14 +100,14 @@ _chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 
 	chimaera_event_t mev;
 
-	float n = 160.f / 3.f;
+	const float n = *handle->sensors;
 
 	if( (cev->state == CHIMAERA_STATE_ON) || (cev->state == CHIMAERA_STATE_SET) )
 	{
 		if(handle->order == 0)
 		{
-			float val = cev->x * n;
-			float ro = floor(val + 0.5);
+			const float val = cev->x * n;
+			const float ro = floor(val + 0.5);
 			mev.x = ro / n;
 		}
 		else if(handle->order == 1)
@@ -112,8 +116,8 @@ _chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 		}
 		else // handle->order == 2, 3, 4, 5
 		{
-			float val = cev->x * n;
-			float ro = floor(val + 0.5);
+			const float val = cev->x * n;
+			const float ro = floor(val + 0.5);
 			float rel = val - ro;
 			if(rel < 0.f)
 				rel = pow(rel * handle->ex, handle->order) * handle->sign;
@@ -164,7 +168,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
-	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))

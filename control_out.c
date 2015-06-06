@@ -121,7 +121,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	memcpy(handle->event_out, handle->event_in,
 		sizeof(LV2_Atom) + handle->event_in->atom.size);
 
-	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))

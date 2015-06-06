@@ -92,6 +92,7 @@ static void
 _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
+	lv2_atom_forge_frame_time(forge, frames);
 	osc_forge_message_vararg(&handle->oforge, forge,
 		"/s_new", "siiiiisisi",
 		"base", cev->sid, 0, cev->gid,
@@ -104,6 +105,7 @@ static void
 _osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
+	lv2_atom_forge_frame_time(forge, frames);
 	osc_forge_message_vararg(&handle->oforge, forge,
 		"/n_set", "isi",
 		cev->sid,
@@ -114,6 +116,7 @@ static void
 _osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
+	lv2_atom_forge_frame_time(forge, frames);
 	osc_forge_message_vararg(&handle->oforge, forge,
 		"/n_setn", "iiiffff",
 		cev->sid, 0, 4,
@@ -139,7 +142,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
-	LV2_Atom_Event *ev = NULL;
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))
