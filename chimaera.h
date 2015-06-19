@@ -206,7 +206,7 @@ chimaera_dump_forge(chimaera_forge_t *cforge, int32_t *values, uint32_t sensors)
 			.obj = {
 				.atom.type = forge->Object,
 				.atom.size = sizeof(chimaera_dump_t) + values_size - sizeof(LV2_Atom),
-				.body.id = cforge->uris.event,
+				.body.id = 0,
 				.body.otype = cforge->uris.dump 
 			},
 			.prop = {
@@ -245,7 +245,6 @@ chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
 
 	if(lv2_atom_forge_is_object_type(forge, atom->type)
-			&& (obj->body.id == cforge->uris.event)
 			&& (obj->body.otype == cforge->uris.dump) )
 		return 1;
 	
@@ -280,7 +279,7 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 			.obj = {
 				.atom.type = forge->Object,
 				.atom.size = sizeof(chimaera_pack_t) - sizeof(LV2_Atom),
-				.body.id = cforge->uris.event,
+				.body.id = 0,
 				.body.otype = otype
 			},
 			.prop = {
@@ -337,7 +336,6 @@ chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
 
 	if(lv2_atom_forge_is_object_type(forge, atom->type)
-			&& (obj->body.id == cforge->uris.event)
 			&& (obj->body.otype != cforge->uris.dump) )
 		return 1;
 	

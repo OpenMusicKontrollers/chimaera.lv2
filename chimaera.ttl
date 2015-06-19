@@ -24,6 +24,7 @@
 @prefix atom:	<http://lv2plug.in/ns/ext/atom#> .
 @prefix midi:	<http://lv2plug.in/ns/ext/midi#> .
 @prefix work: <http://lv2plug.in/ns/ext/worker#> .
+@prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
@@ -53,6 +54,7 @@ chim:filter
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -143,6 +145,7 @@ chim:mapper
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -206,19 +209,19 @@ chim:mapper
 # Simulator UI
 chim:simulator_eo
 	a ui:EoUI ;
-	lv2:requiredFeature ui:portMap .
+	lv2:requiredFeature ui:portMap, urid:map .
 chim:simulator_ui
 	a ui:UI ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:simulator_x11
 	a ui:X11UI ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:simulator_kx
 	a kx:Widget ;
-	lv2:requiredFeature kx:Host, ui:portMap .
+	lv2:requiredFeature kx:Host, ui:portMap, urid:map .
 
 # Simulator Plugin
 chim:simulator
@@ -228,6 +231,7 @@ chim:simulator
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -278,7 +282,7 @@ chim:visualizer_eo
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:portMap .
+	lv2:requiredFeature ui:portMap, urid:map .
 chim:visualizer_ui
 	a ui:UI ;
 	ui:portNotification [
@@ -286,7 +290,7 @@ chim:visualizer_ui
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:visualizer_x11
 	a ui:X11UI ;
@@ -295,7 +299,7 @@ chim:visualizer_x11
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:visualizer_kx
@@ -305,7 +309,7 @@ chim:visualizer_kx
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature kx:Host, ui:portMap .
+	lv2:requiredFeature kx:Host, ui:portMap, urid:map .
 
 # Visualizer Plugin
 chim:visualizer
@@ -315,6 +319,7 @@ chim:visualizer
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -386,6 +391,7 @@ chim:control_out
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -488,6 +494,7 @@ chim:midi_out
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# input event port
@@ -559,6 +566,7 @@ chim:osc_out
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	# input event port
 	lv2:port [
@@ -590,7 +598,7 @@ chim:comm_eo
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:portMap .
+	lv2:requiredFeature ui:portMap, urid:map .
 chim:comm_ui
 	a ui:UI ;
 	ui:portNotification [
@@ -598,7 +606,7 @@ chim:comm_ui
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
   lv2:extensionData ui:idleInterface, ui:showInterface .
 chim:comm_x11
 	a ui:X11UI ;
@@ -607,7 +615,7 @@ chim:comm_x11
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature ui:idleInterface, ui:portMap ;
+	lv2:requiredFeature ui:idleInterface, ui:portMap, urid:map ;
 	lv2:optionalFeature ui:resize ;
   lv2:extensionData ui:idleInterface .
 chim:comm_kx
@@ -617,7 +625,7 @@ chim:comm_kx
 		lv2:symbol "notify" ;
 		ui:protocol atom:eventTransfer ;
 	] ;
-	lv2:requiredFeature kx:Host, ui:portMap .
+	lv2:requiredFeature kx:Host, ui:portMap, urid:map .
 
 # Comm Plugin
 chim:comm
@@ -627,6 +635,7 @@ chim:comm
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:requiredFeature urid:map ;
 
 	lv2:port [
 	# output event port
