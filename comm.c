@@ -338,7 +338,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			{
 				const uint8_t *m;
 				if((ptr = osc_get_midi(ptr, &m)))
-					osc_forge_midi(&handle->oforge, forge, m);
+					osc_forge_midi(&handle->oforge, forge, 4, m);
 				break;
 			}
 		}
