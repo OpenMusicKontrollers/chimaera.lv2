@@ -37,6 +37,8 @@
 
 // event uri
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#event"
+#define CHIMAERA_COMM_URL_URI			CHIMAERA_URI"#commURL"
+#define CHIMAERA_DATA_URL_URI			CHIMAERA_URI"#dataURL"
 
 // state uris
 #define CHIMAERA_STATE_ON_URI			CHIMAERA_URI"#on"

@@ -634,8 +634,9 @@ chim:comm
 	doap:name "Chimaera Comm" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
+	lv2:extensionData work:interface, state:interface ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
-	lv2:requiredFeature urid:map ;
+	lv2:requiredFeature urid:map, work:schedule ;
 
 	lv2:port [
 	# output event port

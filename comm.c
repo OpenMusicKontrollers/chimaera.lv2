@@ -60,6 +60,11 @@ struct _handle_t {
 	osc_forge_t oforge;
 
 	struct {
+		LV2_URID chimaera_comm_url;
+		LV2_URID chimaera_data_url;
+	} uris;
+
+	struct {
 		chimaera_dict_t dict [CHIMAERA_DICT_SIZE];
 		dummy_ref_t ref [CHIMAERA_DICT_SIZE];
 	} dummy;
@@ -84,16 +89,21 @@ struct _handle_t {
 	const float *through_in;
 	LV2_Atom_Sequence *event_out;
 
-	uv_thread_t thread;
 	uv_loop_t loop;
-	uv_async_t quit;
-	uv_async_t flush;
+
+	LV2_Worker_Schedule *sched;
+	LV2_Worker_Respond_Function respond;
+	LV2_Worker_Respond_Handle target;
 
 	struct {
 		osc_stream_driver_t driver;
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
+		volatile int reconnection_requested;
+		volatile int restored;
+		volatile int needs_flushing;
+		char url [512];
 	} comm;
 	
 	struct {
@@ -101,7 +111,93 @@ struct _handle_t {
 		osc_stream_t *stream;
 		varchunk_t *from_worker;
 		varchunk_t *to_worker;
+		volatile int reconnection_requested;
+		volatile int restored;
+		char url [512];
 	} data;
+};
+
+const char flush_msg [] = "/chimaera/flush\0,\0\0\0";
+const char recv_msg [] = "/chimaera/recv\0\0,\0\0\0";
+
+static LV2_State_Status
+_state_save(LV2_Handle instance, LV2_State_Store_Function store,
+	LV2_State_Handle state, uint32_t flags,
+	const LV2_Feature *const *features)
+{
+	handle_t *handle = (handle_t *)instance;
+	LV2_State_Status status;
+
+	status = store(
+		state,
+		handle->uris.chimaera_comm_url,
+		handle->comm.url,
+		strlen(handle->comm.url) + 1,
+		handle->cforge.forge.String,
+		LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	if(status != LV2_STATE_SUCCESS)
+		return status;
+
+	status = store(
+		state,
+		handle->uris.chimaera_data_url,
+		handle->data.url,
+		strlen(handle->data.url) + 1,
+		handle->cforge.forge.String,
+		LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+	return status;
+}
+
+static LV2_State_Status
+_state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
+	LV2_State_Handle state, uint32_t flags,
+	const LV2_Feature *const *features)
+{
+	handle_t *handle = (handle_t *)instance;
+
+	size_t size;
+	uint32_t type;
+	uint32_t flags2;
+
+	// retrieve comm.url
+	const char *comm_url = retrieve(
+		state,
+		handle->uris.chimaera_comm_url,
+		&size,
+		&type,
+		&flags2
+	);
+
+	// check type
+	if(type != handle->cforge.forge.String)
+		return LV2_STATE_ERR_BAD_TYPE;
+
+	strcpy(handle->comm.url, comm_url);
+	handle->comm.restored = 1;
+
+	// retreive data.url
+	const char *data_url = retrieve(
+		state,
+		handle->uris.chimaera_data_url,
+		&size,
+		&type,
+		&flags2
+	);
+
+	// check type
+	if(type != handle->cforge.forge.String)
+		return LV2_STATE_ERR_BAD_TYPE;
+
+	strcpy(handle->data.url, data_url);
+	handle->data.restored = 1;
+
+	return LV2_STATE_SUCCESS;
+}
+
+static const LV2_State_Interface state_iface = {
+	.save = _state_save,
+	.restore = _state_restore
 };
 
 // non-rt
@@ -145,6 +241,16 @@ _comm_send_adv(void *data)
 }
 
 // non-rt
+static void
+_comm_free(void *data)
+{
+	handle_t *handle = data;
+
+	handle->comm.stream = NULL;
+	handle->comm.reconnection_requested = 1;
+}
+
+// non-rt
 static void *
 _data_recv_req(size_t size, void *data)
 {
@@ -182,6 +288,16 @@ _data_send_adv(void *data)
 	handle_t *handle = data;
 
 	return varchunk_read_advance(handle->data.to_worker);
+}
+
+// non-rt
+static void
+_data_free(void *data)
+{
+	handle_t *handle = data;
+
+	handle->data.stream = NULL;
+	handle->data.reconnection_requested = 1;
 }
 
 static int
@@ -923,11 +1039,19 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			handle->map = (LV2_URID_Map *)features[i]->data;
+		else if(!strcmp(features[i]->URI, LV2_WORKER__schedule))
+			handle->sched = (LV2_Worker_Schedule *)features[i]->data;
 	}
 
 	if(!handle->map)
 	{
 		fprintf(stderr, "%s: Host does not support urid:map\n", descriptor->URI);
+		free(handle);
+		return NULL;
+	}
+	if(!handle->sched)
+	{
+		fprintf(stderr, "%s: Host does not support worker:sched\n", descriptor->URI);
 		free(handle);
 		return NULL;
 	}
@@ -937,6 +1061,11 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	CHIMAERA_DICT_INIT(handle->dummy.dict, handle->dummy.ref);
 	CHIMAERA_DICT_INIT(handle->tuio2.dict[0], handle->tuio2.ref[0]);
 	CHIMAERA_DICT_INIT(handle->tuio2.dict[1], handle->tuio2.ref[1]);
+
+	handle->uris.chimaera_comm_url = handle->map->map(handle->map->handle,
+		CHIMAERA_COMM_URL_URI);
+	handle->uris.chimaera_data_url = handle->map->map(handle->map->handle,
+		CHIMAERA_DATA_URL_URI);
 
 	// init comm
 	handle->comm.from_worker = varchunk_new(BUF_SIZE);
@@ -951,6 +1080,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	handle->comm.driver.recv_adv = _comm_recv_adv;
 	handle->comm.driver.send_req = _comm_send_req;
 	handle->comm.driver.send_adv = _comm_send_adv;
+	handle->comm.driver.free = _comm_free;
 
 	// init data
 	handle->data.from_worker = varchunk_new(BUF_SIZE);
@@ -965,6 +1095,10 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	handle->data.driver.recv_adv = _data_recv_adv;
 	handle->data.driver.send_req = _data_send_req;
 	handle->data.driver.send_adv = _data_send_adv;
+	handle->data.driver.free = _data_free;
+	
+	strcpy(handle->comm.url, "osc.udp4://chimaera.local:4444");
+	strcpy(handle->data.url, "osc.udp4://:3333");
 
 	return handle;
 }
@@ -996,66 +1130,6 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 	}
 }
 
-// non-rt
-static void
-_quit(uv_async_t *quit)
-{
-	handle_t *handle = quit->data;
-
-	uv_close((uv_handle_t *)&handle->quit, NULL);
-	uv_close((uv_handle_t *)&handle->flush, NULL);
-	osc_stream_free(handle->comm.stream);
-	osc_stream_free(handle->data.stream);
-}
-
-// non-rt
-static void
-_flush(uv_async_t *quit)
-{
-	handle_t *handle = quit->data;
-
-	// flush sending queue
-	osc_stream_flush(handle->comm.stream);
-	osc_stream_flush(handle->data.stream);
-}
-
-// non-rt
-static void
-_thread(void *data)
-{
-	handle_t *handle = data;
-
-	const int priority = 50;
-
-#if defined(_WIN32)
-	int mcss_sched_priority;
-	mcss_sched_priority = priority > 50 // TODO when to use CRITICAL?
-		? AVRT_PRIORITY_CRITICAL
-		: (priority > 0
-			? AVRT_PRIORITY_HIGH
-			: AVRT_PRIORITY_NORMAL);
-
-	// Multimedia Class Scheduler Service
-	DWORD dummy = 0;
-	HANDLE task = AvSetMmThreadCharacteristics("Pro Audio", &dummy);
-	if(!task)
-		fprintf(stderr, "AvSetMmThreadCharacteristics error: %d\n", GetLastError());
-	else if(!AvSetMmThreadPriority(task, mcss_sched_priority))
-		fprintf(stderr, "AvSetMmThreadPriority error: %d\n", GetLastError());
-
-#else
-	struct sched_param schedp;
-	memset(&schedp, 0, sizeof(struct sched_param));
-	schedp.sched_priority = priority;
-	
-	if(pthread_setschedparam(pthread_self(), SCHED_RR, &schedp))
-		fprintf(stderr, "pthread_setschedparam error\n");
-#endif
-
-	// main loop
-	uv_run(&handle->loop, UV_RUN_DEFAULT);
-}
-
 static void
 activate(LV2_Handle instance)
 {
@@ -1063,19 +1137,203 @@ activate(LV2_Handle instance)
 
 	uv_loop_init(&handle->loop);
 
-	handle->quit.data = handle;
-	uv_async_init(&handle->loop, &handle->quit, _quit);
-	
-	handle->flush.data = handle;
-	uv_async_init(&handle->loop, &handle->flush, _flush);
-
-	handle->comm.stream = osc_stream_new(&handle->loop, "osc.udp4://chimaera.local:4444",
+	handle->comm.stream = osc_stream_new(&handle->loop, handle->comm.url,
 		&handle->comm.driver, handle);
-
-	handle->data.stream = osc_stream_new(&handle->loop, "osc.udp4://:3333",
+	handle->data.stream = osc_stream_new(&handle->loop, handle->data.url,
 		&handle->data.driver, handle);
+}
 
-	uv_thread_create(&handle->thread, _thread, handle);
+// non-rt
+static int
+_worker_api_flush(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	osc_stream_flush(handle->comm.stream);
+
+	return 1;
+}
+
+// non-rt
+static int
+_worker_api_recv(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	// do nothing
+
+	return 1;
+}
+
+// non-rt
+static int
+_worker_api_data_recv(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	// do nothing
+
+	return 1;
+}
+
+// non-rt
+static int
+_worker_api_comm_url(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+	const osc_data_t *ptr = buf;
+
+	const char *comm_url;
+	ptr = osc_get_string(ptr, &comm_url);
+
+	strcpy(handle->comm.url, comm_url);
+
+	if(handle->comm.stream)
+		osc_stream_free(handle->comm.stream);
+	else
+		handle->comm.reconnection_requested = 1;
+
+	return 1;
+}
+
+// non-rt
+static int
+_worker_api_data_url(osc_time_t timestamp, const char *path, const char *fmt,
+	const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+	const osc_data_t *ptr = buf;
+
+	const char *data_url;
+	ptr = osc_get_string(ptr, &data_url);
+
+	strcpy(handle->data.url, data_url);
+
+	if(handle->data.stream)
+		osc_stream_free(handle->data.stream);
+	else
+		handle->data.reconnection_requested = 1;
+
+	return 1;
+}
+
+static const osc_method_t worker_api [] = {
+	{"/chimaera/flush", NULL, _worker_api_flush},
+	{"/chimaera/recv", NULL, _worker_api_recv},
+
+	{"/chimaera/comm/url", "s", _worker_api_comm_url},
+	{"/chimaera/data/url", "s", _worker_api_data_url},
+
+	{NULL, NULL, NULL}
+};
+
+// non-rt thread
+static LV2_Worker_Status
+_work(LV2_Handle instance,
+	LV2_Worker_Respond_Function respond,
+	LV2_Worker_Respond_Handle target,
+	uint32_t size,
+	const void *body)
+{
+	handle_t *handle = instance;
+
+	if(handle->comm.reconnection_requested)
+	{
+		handle->comm.stream = osc_stream_new(&handle->loop, handle->comm.url,
+			&handle->comm.driver, handle);
+
+		handle->data.reconnection_requested = 0;
+	}
+	if(handle->data.reconnection_requested)
+	{
+		handle->data.stream = osc_stream_new(&handle->loop, handle->data.url,
+			&handle->data.driver, handle);
+
+		handle->data.reconnection_requested = 0;
+	}
+
+	handle->respond = respond;
+	handle->target = target;
+
+	osc_dispatch_method(OSC_IMMEDIATE, body, size, worker_api, NULL, NULL, handle);
+	uv_run(&handle->loop, UV_RUN_NOWAIT);
+
+	handle->respond = NULL;
+	handle->target = NULL;
+
+	return LV2_WORKER_SUCCESS;
+}
+
+// rt-thread
+static LV2_Worker_Status
+_work_response(LV2_Handle instance, uint32_t size, const void *body)
+{
+	handle_t *handle = instance;
+
+	// do nothing
+
+	return LV2_WORKER_SUCCESS;
+}
+
+// rt-thread
+static LV2_Worker_Status
+_end_run(LV2_Handle instance)
+{
+	handle_t *handle = instance;
+
+	// do nothing
+
+	return LV2_WORKER_SUCCESS;
+}
+
+static const LV2_Worker_Interface work_iface = {
+	.work = _work,
+	.work_response = _work_response,
+	.end_run = _end_run
+};
+
+// rt
+static void
+_comm_url_change(handle_t *handle, const char *url)
+{
+	osc_data_t buf [512];
+	osc_data_t *ptr = buf;
+	osc_data_t *end = buf + 512;
+
+	ptr = osc_set_path(ptr, end, "/chimaera/comm/url");
+	ptr = osc_set_fmt(ptr, end, "s");
+	ptr = osc_set_string(ptr, end, url);
+
+	if(ptr)
+	{
+		LV2_Worker_Status status = handle->sched->schedule_work(
+			handle->sched->handle, ptr - buf, buf);
+		//TODO check status
+	}
+}
+
+// rt
+static void
+_data_url_change(handle_t *handle, const char *url)
+{
+	osc_data_t buf [512];
+	osc_data_t *ptr = buf;
+	osc_data_t *end = buf + 512;
+
+	ptr = osc_set_path(ptr, end, "/chimaera/data/url");
+	ptr = osc_set_fmt(ptr, end, "s");
+	ptr = osc_set_string(ptr, end, url);
+
+	if(ptr)
+	{
+		LV2_Worker_Status status = handle->sched->schedule_work(
+			handle->sched->handle, ptr - buf, buf);
+		//TODO check status
+	}
 }
 
 static void
@@ -1087,7 +1345,9 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	const osc_data_t *ptr;
 	size_t size;
+	handle->comm.needs_flushing = 0;
 
+	// handle TUIO reset toggle
 	int reset = *handle->reset_in > 0.f ? 1 : 0;
 	if(reset && !handle->tuio2.reset)
 	{
@@ -1111,7 +1371,21 @@ run(LV2_Handle instance, uint32_t nsamples)
 		osc_atom_event_unroll(&handle->oforge, obj, _ui_recv, handle);
 	}
 	if(handle->control->atom.size > sizeof(LV2_Atom_Sequence_Body))
-		uv_async_send(&handle->flush);
+		handle->comm.needs_flushing = 1;
+
+	// notify worker thread to either flush or receive
+	if(handle->comm.needs_flushing)
+	{
+		LV2_Worker_Status status = handle->sched->schedule_work(
+			handle->sched->handle, sizeof(flush_msg), flush_msg);
+		//TODO check status
+	}
+	else
+	{
+		LV2_Worker_Status status = handle->sched->schedule_work(
+			handle->sched->handle, sizeof(recv_msg), recv_msg);
+		//TODO check status
+	}
 
 	// read incoming comm and write to ui
 	capacity = handle->notify->atom.size;
@@ -1138,6 +1412,17 @@ run(LV2_Handle instance, uint32_t nsamples)
 		varchunk_read_advance(handle->data.from_worker);
 	}
 	lv2_atom_forge_pop(forge, &frame);
+
+	if(handle->comm.restored)
+	{
+		_comm_url_change(handle, handle->comm.url);
+		handle->comm.restored = 0;
+	}
+	if(handle->data.restored)
+	{
+		_data_url_change(handle, handle->data.url);
+		handle->data.restored = 0;
+	}
 }
 
 static void
@@ -1145,8 +1430,13 @@ deactivate(LV2_Handle instance)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	uv_async_send(&handle->quit);
-	uv_thread_join(&handle->thread);
+	if(handle->comm.stream)
+		osc_stream_free(handle->comm.stream);
+	if(handle->data.stream)
+		osc_stream_free(handle->data.stream);
+
+	uv_run(&handle->loop, UV_RUN_NOWAIT);
+
 	uv_loop_close(&handle->loop);
 }
 
