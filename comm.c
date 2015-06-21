@@ -32,6 +32,7 @@
 
 #define BUF_SIZE 0x10000
 
+typedef enum _plugstate_t plugstate_t;
 typedef struct _dummy_ref_t dummy_ref_t;
 typedef struct _tuio2_ref_t tuio2_ref_t;
 typedef struct _handle_t handle_t;
@@ -39,6 +40,14 @@ typedef struct _handle_t handle_t;
 struct _dummy_ref_t {
 	uint32_t gid;
 	uint32_t pid;
+};
+
+enum _plugstate_t {
+	STATE_IDLE					= 0,
+	STATE_READY					= 1,
+	STATE_TIMEDOUT			= 2,
+	STATE_ERRORED				= 3,
+	STATE_CONNECTED			= 4
 };
 
 struct _tuio2_ref_t {
@@ -83,11 +92,13 @@ struct _handle_t {
 		int reset;
 	} tuio2;
 
-	const LV2_Atom_Sequence *control;
-	LV2_Atom_Sequence *notify;
+	LV2_Atom_Sequence *event_out;
 	const float *reset_in;
 	const float *through_in;
-	LV2_Atom_Sequence *event_out;
+	float *comm_state;
+	float *data_state;
+	const LV2_Atom_Sequence *control;
+	LV2_Atom_Sequence *notify;
 
 	uv_loop_t loop;
 
@@ -160,7 +171,7 @@ _state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
 	uint32_t type;
 	uint32_t flags2;
 
-	// retrieve comm.url
+	// retrieve comm_url
 	const char *comm_url = retrieve(
 		state,
 		handle->uris.chimaera_comm_url,
@@ -169,14 +180,18 @@ _state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
 		&flags2
 	);
 
-	// check type
+	// check
+	if(!comm_url)
+		return LV2_STATE_ERR_NO_PROPERTY;
 	if(type != handle->cforge.forge.String)
 		return LV2_STATE_ERR_BAD_TYPE;
 
 	strcpy(handle->comm.url, comm_url);
 	handle->comm.restored = 1;
 
-	// retreive data.url
+	//printf("comm.url: %s\n", comm_url);
+
+	// retrieve data_url
 	const char *data_url = retrieve(
 		state,
 		handle->uris.chimaera_data_url,
@@ -186,11 +201,15 @@ _state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
 	);
 
 	// check type
+	if(!data_url)
+		return LV2_STATE_ERR_NO_PROPERTY;
 	if(type != handle->cforge.forge.String)
 		return LV2_STATE_ERR_BAD_TYPE;
 
 	strcpy(handle->data.url, data_url);
 	handle->data.restored = 1;
+
+	//printf("data.url: %s\n", data_url);
 
 	return LV2_STATE_SUCCESS;
 }
@@ -300,61 +319,67 @@ _data_free(void *data)
 	handle->data.reconnection_requested = 1;
 }
 
+// rt
 static int
 _comm_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->comm_state = STATE_READY;
 
 	return 1;
 }
 
+// rt
 static int
 _comm_timeout(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->comm_state = STATE_TIMEDOUT;
 
 	return 1;
 }
 
+// rt
 static int
 _comm_error(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->comm_state = STATE_ERRORED;
 
 	return 1;
 }
 
+// rt
 static int
 _comm_connect(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->comm_state = STATE_CONNECTED;
 
 	return 1;
 }
 
+// rt
 static int
 _comm_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->comm_state = STATE_READY;
 
 	return 1;
 }
 
+// rt
 static void
 _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size)
@@ -462,6 +487,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 	osc_forge_message_pop(&handle->oforge, forge, frame);
 }
 
+// rt
 static int
 _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -473,6 +499,7 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static inline void
 _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 {
@@ -482,61 +509,67 @@ _chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
 	chimaera_event_forge(&handle->cforge, cev);
 }
 
+// rt
 static int
 _data_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->data_state = STATE_READY;
 
 	return 1;
 }
 
+// rt
 static int
 _data_timeout(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->data_state = STATE_TIMEDOUT;
 
 	return 1;
 }
 
+// rt
 static int
 _data_error(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->data_state = STATE_ERRORED;
 
 	return 1;
 }
 
+// rt
 static int
 _data_connect(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->data_state = STATE_CONNECTED;
 
 	return 1;
 }
 
+// rt
 static int
 _data_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
-	//TODO
+	*handle->data_state = STATE_READY;
 
 	return 1;
 }
 
+// rt
 static int
 _data_through(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -549,6 +582,7 @@ _data_through(osc_time_t timestamp, const char *path, const char *fmt,
 	return 0;
 }
 
+// rt
 static int
 _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -587,6 +621,7 @@ _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -635,6 +670,7 @@ _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -730,6 +766,7 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -775,6 +812,7 @@ _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -806,6 +844,7 @@ _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -857,6 +896,7 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -883,6 +923,7 @@ _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
 	return 1;
 }
 
+// rt
 static int
 _dump(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -1120,9 +1161,15 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->through_in = (const float *)data;
 			break;
 		case 3:
-			handle->control = (const LV2_Atom_Sequence *)data;
+			handle->comm_state = (float *)data;
 			break;
 		case 4:
+			handle->data_state = (float *)data;
+			break;
+		case 5:
+			handle->control = (const LV2_Atom_Sequence *)data;
+			break;
+		case 6:
 			handle->notify = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -1137,10 +1184,8 @@ activate(LV2_Handle instance)
 
 	uv_loop_init(&handle->loop);
 
-	handle->comm.stream = osc_stream_new(&handle->loop, handle->comm.url,
-		&handle->comm.driver, handle);
-	handle->data.stream = osc_stream_new(&handle->loop, handle->data.url,
-		&handle->data.driver, handle);
+	handle->comm.restored = 1;
+	handle->data.restored = 1;
 }
 
 // non-rt
@@ -1158,18 +1203,6 @@ _worker_api_flush(osc_time_t timestamp, const char *path, const char *fmt,
 // non-rt
 static int
 _worker_api_recv(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	// do nothing
-
-	return 1;
-}
-
-// non-rt
-static int
-_worker_api_data_recv(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
@@ -1246,7 +1279,7 @@ _work(LV2_Handle instance,
 		handle->comm.stream = osc_stream_new(&handle->loop, handle->comm.url,
 			&handle->comm.driver, handle);
 
-		handle->data.reconnection_requested = 0;
+		handle->comm.reconnection_requested = 0;
 	}
 	if(handle->data.reconnection_requested)
 	{
@@ -1455,6 +1488,11 @@ cleanup(LV2_Handle instance)
 static const void*
 extension_data(const char* uri)
 {
+	if(!strcmp(uri, LV2_STATE__interface))
+		return &state_iface;
+	else if(!strcmp(uri, LV2_WORKER__interface))
+		return &work_iface;
+
 	return NULL;
 }
 
