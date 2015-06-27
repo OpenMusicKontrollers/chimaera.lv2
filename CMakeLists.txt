@@ -13,6 +13,11 @@ include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
 set(CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
 
+set(CHIMAERA_MAJOR_VERSION 0)
+set(CHIMAERA_MINOR_VERSION 1)
+set(CHIMAERA_MICRO_VERSION 1)
+set(CHIMAERA_VERSION "${}.${}.${}")
+
 set(DEST lib/lv2/chimaera.lv2)
 if(WIN32)
 	set(LIB_EXT ".dll")

@@ -33,31 +33,43 @@ kx:Host
 
 chim:filter
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
 chim:mapper
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
 chim:control_out
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
 chim:midi_out
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
 chim:osc_out
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
 
 chim:simulator
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	@EO_UI_WRAP@ui:ui chim:simulator_eo ;
 	@UI_UI_WRAP@ui:ui chim:simulator_ui ;
@@ -83,6 +95,8 @@ chim:simulator_kx
 
 chim:visualizer
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	@EO_UI_WRAP@ui:ui chim:visualizer_eo ;
 	@UI_UI_WRAP@ui:ui chim:visualizer_ui ;
@@ -108,6 +122,8 @@ chim:visualizer_kx
 
 chim:comm
 	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	@EO_UI_WRAP@ui:ui chim:comm_eo ;
 	@UI_UI_WRAP@ui:ui chim:comm_ui ;
