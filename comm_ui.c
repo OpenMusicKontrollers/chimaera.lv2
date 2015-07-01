@@ -869,8 +869,8 @@ _comm_query(UI *ui, const char *target, const char *fmt, const LV2_Atom *itr)
 }
 
 static void
-_comm_recv(uint64_t timestamp, const char *path, const char *fmt,
-	const LV2_Atom_Tuple *body, void *data)
+_comm_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *body,
+	void *data)
 {
 	UI *ui = data;
 
@@ -932,7 +932,7 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 
 	if(i == ui->notify_port) // notify
 	{
-		osc_atom_event_unroll(&ui->oforge, buf, _comm_recv, ui);
+		osc_atom_event_unroll(&ui->oforge, buf, NULL, NULL, _comm_recv, ui);
 	}
 }
 

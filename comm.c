@@ -985,8 +985,8 @@ static const osc_method_t data_methods [] = {
 
 // rt-thread
 static void
-_ui_recv(uint64_t timestamp, const char *path, const char *fmt,
-	const LV2_Atom_Tuple *args, void *data)
+_ui_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
+	void *data)
 {
 	handle_t *handle = data;
 
@@ -1415,7 +1415,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_ATOM_SEQUENCE_FOREACH(handle->control, ev)
 	{
 		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-		osc_atom_event_unroll(&handle->oforge, obj, _ui_recv, handle);
+		osc_atom_event_unroll(&handle->oforge, obj, NULL, NULL, _ui_recv, handle);
 	}
 	if(handle->control->atom.size > sizeof(LV2_Atom_Sequence_Body))
 		handle->comm.needs_flushing = 1;
