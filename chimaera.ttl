@@ -26,6 +26,7 @@
 @prefix work: <http://lv2plug.in/ns/ext/worker#> .
 @prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 @prefix state: <http://lv2plug.in/ns/ext/state#> .
+@prefix patch: <http://lv2plug.in/ns/ext/patch#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
@@ -573,6 +574,39 @@ chim:midi_out
 		lv2:portProperty lv2:integer ;
 	] .
 
+chim:synth_name_1
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 1" ;
+	rdfs:range atom:String .
+chim:synth_name_2
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 2" ;
+	rdfs:range atom:String .
+chim:synth_name_3
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 3" ;
+	rdfs:range atom:String .
+chim:synth_name_4
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 4" ;
+	rdfs:range atom:String .
+chim:synth_name_5
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 5" ;
+	rdfs:range atom:String .
+chim:synth_name_6
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 6" ;
+	rdfs:range atom:String .
+chim:synth_name_7
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 7" ;
+	rdfs:range atom:String .
+chim:synth_name_8
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 8" ;
+	rdfs:range atom:String .
+
 # Osc Plugin
 chim:osc_out
 	a lv2:Plugin,
@@ -580,15 +614,25 @@ chim:osc_out
 	doap:name "Chimaera SuperCollider Out" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
+	lv2:extension_data state:interface ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
 	lv2:requiredFeature urid:map ;
+
+	patch:writable chim:synth_name_1 ;
+	patch:writable chim:synth_name_2 ;
+	patch:writable chim:synth_name_3 ;
+	patch:writable chim:synth_name_4 ;
+	patch:writable chim:synth_name_5 ;
+	patch:writable chim:synth_name_6 ;
+	patch:writable chim:synth_name_7 ;
+	patch:writable chim:synth_name_8 ;
 
 	# input event port
 	lv2:port [
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
+		atom:supports atom:Object, patch:Message ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
@@ -598,7 +642,7 @@ chim:osc_out
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object ;
+		atom:supports atom:Object, patch:Message ;
 		lv2:index 1 ;
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;

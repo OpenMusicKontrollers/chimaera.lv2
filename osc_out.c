@@ -23,10 +23,26 @@
 #include <lv2_osc.h>
 
 #define BUF_SIZE 2048
+#define SYNTH_NAMES 8
+#define STRING_SIZE 32
 
 typedef struct _handle_t handle_t;
 
 struct _handle_t {
+	struct {
+		LV2_URID patch_get;
+		LV2_URID patch_set;
+		LV2_URID patch_subject;
+		LV2_URID patch_property;
+		LV2_URID patch_value;
+
+		LV2_URID subject;
+
+		LV2_URID synth_name [SYNTH_NAMES];
+	} urid;
+
+	char synth_name [STRING_SIZE][SYNTH_NAMES];
+
 	LV2_URID_Map *map;
 	chimaera_forge_t cforge;
 	osc_forge_t oforge;
@@ -42,6 +58,78 @@ struct _handle_t {
 	const float *allocate;
 	const float *gate;
 	const float *group;
+
+	int i_allocate;
+	int i_gate;
+	int i_group;
+};
+
+static const char *synth_name_uri [SYNTH_NAMES] = {
+	CHIMAERA_URI"#synth_name_1",
+	CHIMAERA_URI"#synth_name_2",
+	CHIMAERA_URI"#synth_name_3",
+	CHIMAERA_URI"#synth_name_4",
+	CHIMAERA_URI"#synth_name_5",
+	CHIMAERA_URI"#synth_name_6",
+	CHIMAERA_URI"#synth_name_7",
+	CHIMAERA_URI"#synth_name_8"
+};
+
+static LV2_State_Status
+_state_save(LV2_Handle instance, LV2_State_Store_Function store,
+	LV2_State_Handle state, uint32_t flags,
+	const LV2_Feature *const *features)
+{
+	handle_t *handle = instance;
+
+	for(int i=0; i<SYNTH_NAMES; i++)
+	{
+		store(
+			state,
+			handle->urid.synth_name[i],
+			handle->synth_name[i],
+			strlen(handle->synth_name[i]) + 1,
+			handle->forge.String,
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	}
+
+	return LV2_STATE_SUCCESS;
+}
+
+static LV2_State_Status
+_state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
+	LV2_State_Handle state, uint32_t flags,
+	const LV2_Feature *const *features)
+{
+	handle_t *handle = instance;
+
+	size_t size;
+	uint32_t type;
+	uint32_t flags2;
+
+	for(int i=0; i<SYNTH_NAMES; i++)
+	{
+		const char *synth_name = retrieve(
+			state,
+			handle->urid.synth_name[i],
+			&size,
+			&type,
+			&flags2
+		);
+
+		// check type
+		if(type != handle->forge.String)
+			continue;
+
+		strncpy(handle->synth_name[i], synth_name, STRING_SIZE);
+	}
+
+	return LV2_STATE_SUCCESS;
+}
+
+static const LV2_State_Interface state_iface = {
+	.save = _state_save,
+	.restore = _state_restore
 };
 
 static LV2_Handle
@@ -62,6 +150,25 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		fprintf(stderr, "%s: Host does not support urid:map\n", descriptor->URI);
 		free(handle);
 		return NULL;
+	}
+
+	handle->urid.patch_get = handle->map->map(handle->map->handle,
+		LV2_PATCH__Get);
+	handle->urid.patch_set = handle->map->map(handle->map->handle,
+		LV2_PATCH__Set);
+	handle->urid.patch_subject = handle->map->map(handle->map->handle,
+		LV2_PATCH__subject);
+	handle->urid.patch_property = handle->map->map(handle->map->handle,
+		LV2_PATCH__property);
+	handle->urid.patch_value = handle->map->map(handle->map->handle,
+		LV2_PATCH__value);
+	handle->urid.subject = handle->map->map(handle->map->handle,
+		descriptor->URI);
+	for(int i=0; i<SYNTH_NAMES; i++)
+	{
+		handle->urid.synth_name[i] = handle->map->map(handle->map->handle,
+			synth_name_uri[i]);
+		sprintf(handle->synth_name[i], "synth_%i", i + 1);
 	}
 
 	osc_forge_init(&handle->oforge, handle->map);
@@ -127,49 +234,61 @@ static void
 _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	const int32_t out = (int32_t)floor(*handle->out_offset) + cev->gid;
-	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
 	const int32_t sid = (int32_t)floor(*handle->sid_offset)
 		+ cev->sid % (int32_t)floor(*handle->sid_wrap);
+	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
+	const int32_t out = (int32_t)floor(*handle->out_offset) + cev->gid;
+	const int32_t id = handle->i_group ? gid : sid;
 	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
 	const int32_t arg_num = 4;
-	const int allocate = *handle->allocate != 0.f;
-	const int gate = *handle->allocate != 0.f;
-	const int group = *handle->allocate != 0.f;
-	const int32_t id = group ? gid : sid;
 
-	if(allocate)
+	if(handle->i_allocate)
+	{
+		lv2_atom_forge_frame_time(forge, frames);
+		if(handle->i_gate)
+		{
+			osc_forge_message_vararg(&handle->oforge, forge,
+				"/s_new", "siiiiisisi",
+				handle->synth_name[cev->gid], id, 0, gid,
+				arg_offset + 4, cev->pid,
+				"gate", 1,
+				"out", out);
+		}
+		else // !handle->i_gate
+		{
+			osc_forge_message_vararg(&handle->oforge, forge,
+				"/s_new", "siiiiisi",
+				handle->synth_name[cev->gid], id, 0, gid,
+				arg_offset + 4, cev->pid,
+				"out", out);
+		}
+	}
+	else if(handle->i_gate)
 	{
 		lv2_atom_forge_frame_time(forge, frames);
 		osc_forge_message_vararg(&handle->oforge, forge,
-			"/s_new", "siiiiisisi",
-			"base", id, 0, gid,
-			arg_offset + 4, cev->pid,
-			"out", gid,
+			"/n_set", "isi",
+			id,
 			"gate", 1);
 	}
 
-	if(gate)
-	{
-		lv2_atom_forge_frame_time(forge, frames);
-		osc_forge_message_vararg(&handle->oforge, forge,
-			"/n_setn", "iiiffff",
-			id, arg_offset, arg_num,
-			cev->x, cev->z, cev->X, cev->Z);
-	}
+	lv2_atom_forge_frame_time(forge, frames);
+	osc_forge_message_vararg(&handle->oforge, forge,
+		"/n_setn", "iiiffff",
+		id, arg_offset, arg_num,
+		cev->x, cev->z, cev->X, cev->Z);
 }
 
 static void
 _osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	const int32_t sid = (int32_t)floor(*handle->sid_offset) + cev->sid;
+	const int32_t sid = (int32_t)floor(*handle->sid_offset)
+		+ cev->sid % (int32_t)floor(*handle->sid_wrap);
 	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
-	const int gate = *handle->allocate != 0.f;
-	const int group = *handle->allocate != 0.f;
-	const int32_t id = group ? sid : gid;
+	const int32_t id = handle->i_group ? gid : sid;
 
-	if(gate)
+	if(handle->i_gate)
 	{
 		lv2_atom_forge_frame_time(forge, frames);
 		osc_forge_message_vararg(&handle->oforge, forge,
@@ -183,12 +302,12 @@ static void
 _osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	const int32_t sid = (int32_t)floor(*handle->sid_offset) + cev->sid;
+	const int32_t sid = (int32_t)floor(*handle->sid_offset)
+		+ cev->sid % (int32_t)floor(*handle->sid_wrap);
 	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
+	const int32_t id = handle->i_group ? gid : sid;
 	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
 	const int32_t arg_num = 4;
-	const int group = *handle->allocate != 0.f;
-	const int32_t id = group ? sid : gid;
 
 	lv2_atom_forge_frame_time(forge, frames);
 	osc_forge_message_vararg(&handle->oforge, forge,
@@ -208,6 +327,10 @@ static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
+	
+	handle->i_allocate = *handle->allocate != 0.f;
+	handle->i_gate = *handle->gate != 0.f;
+	handle->i_group = *handle->group != 0.f;
 
 	// prepare osc atom forge
 	const uint32_t capacity = handle->osc_out->atom.size;
@@ -218,12 +341,11 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
+		int64_t frames = ev->time.frames;
+
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))
 		{
-			int64_t frames = ev->time.frames;
-			size_t len = ev->body.size;
 			chimaera_event_t cev;
-
 			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
 
 			switch(cev.state)
@@ -240,6 +362,80 @@ run(LV2_Handle instance, uint32_t nsamples)
 				case CHIMAERA_STATE_IDLE:
 					_osc_idle(handle, forge, frames, &cev);
 					break;
+			}
+		}
+		else if(lv2_atom_forge_is_object_type(forge, ev->body.type))
+		{
+			const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
+
+			if(obj->body.otype == handle->urid.patch_set)
+			{
+				const LV2_Atom_URID *subject = NULL;
+				const LV2_Atom_URID *property = NULL;
+				const LV2_Atom_String *value = NULL;
+
+				LV2_Atom_Object_Query q[] = {
+					{ handle->urid.patch_subject, (const LV2_Atom **)&subject },
+					{ handle->urid.patch_property, (const LV2_Atom **)&property },
+					{ handle->urid.patch_value, (const LV2_Atom **)&value },
+					LV2_ATOM_OBJECT_QUERY_END
+				};
+				lv2_atom_object_query(obj, q);
+
+				if(subject && (subject->body != handle->urid.subject))
+					continue; // subject not matching
+
+				if(!property || !value || !value->atom.size)
+					continue; // invalid value
+
+				for(int i=0; i<SYNTH_NAMES; i++)
+				{
+					if(property->body == handle->urid.synth_name[i])
+					{
+						strncpy(handle->synth_name[i], LV2_ATOM_BODY_CONST(value), STRING_SIZE);
+						break;
+					}
+				}
+			}
+			else if(obj->body.otype == handle->urid.patch_get)
+			{
+				const LV2_Atom_URID *subject = NULL;
+				const LV2_Atom_URID *property = NULL;
+
+				LV2_Atom_Object_Query q[] = {
+					{ handle->urid.patch_subject, (const LV2_Atom **)&subject },
+					{ handle->urid.patch_property, (const LV2_Atom **)&property },
+					LV2_ATOM_OBJECT_QUERY_END
+				};
+				lv2_atom_object_query(obj, q);
+
+				if(subject && (subject->body != handle->urid.subject))
+					continue; // subject not matching
+
+				if(!property)
+					continue; // invalid property
+
+				for(int i=0; i<SYNTH_NAMES; i++)
+				{
+					if(property->body == handle->urid.synth_name[i])
+					{
+						lv2_atom_forge_frame_time(forge, frames);
+						LV2_Atom_Forge_Frame obj_frame;
+						lv2_atom_forge_object(forge, &obj_frame, 0, handle->urid.patch_set);
+						if(subject)
+						{
+							lv2_atom_forge_key(forge, handle->urid.patch_subject);
+								lv2_atom_forge_urid(forge, subject->body);
+						}
+						lv2_atom_forge_key(forge, handle->urid.patch_property);
+							lv2_atom_forge_urid(forge, handle->urid.synth_name[i]);
+						lv2_atom_forge_key(forge, handle->urid.patch_value);
+							lv2_atom_forge_string(forge, handle->synth_name[i], strlen(handle->synth_name[i]));
+						lv2_atom_forge_pop(forge, &obj_frame);
+
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -265,6 +461,9 @@ cleanup(LV2_Handle instance)
 static const void*
 extension_data(const char* uri)
 {
+	if(!strcmp(uri, LV2_STATE__interface))
+		return &state_iface;
+
 	return NULL;
 }
 

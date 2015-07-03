@@ -28,6 +28,7 @@
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
 #include <lv2/lv2plug.in/ns/ext/state/state.h>
 #include <lv2/lv2plug.in/ns/ext/worker/worker.h>
+#include <lv2/lv2plug.in/ns/ext/patch/patch.h>
 #include <lv2/lv2plug.in/ns/extensions/ui/ui.h>
 
 #define _ATOM_ALIGNED __attribute__((aligned(8)))
@@ -338,8 +339,13 @@ chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
 
 	if(lv2_atom_forge_is_object_type(forge, atom->type)
-			&& (obj->body.otype != cforge->uris.dump) )
+			&& ( (obj->body.otype == cforge->uris.on)
+				|| (obj->body.otype == cforge->uris.off)
+				|| (obj->body.otype == cforge->uris.set)
+				|| (obj->body.otype == cforge->uris.idle) ) )
+	{
 		return 1;
+	}
 	
 	return 0;
 }
