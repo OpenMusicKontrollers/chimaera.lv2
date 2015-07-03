@@ -589,6 +589,87 @@ chim:osc_out
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
 		lv2:designation lv2:control ;
+	] , [
+	# input parameters
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 2 ;
+		lv2:symbol "out_offset" ;
+		lv2:name "Out Offset" ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 8 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 3 ;
+		lv2:symbol "gid_offset" ;
+		lv2:name "GID Offset" ;
+		lv2:default 100 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1000 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 4 ;
+		lv2:symbol "sid_offset" ;
+		lv2:name "SID Offset" ;
+		lv2:default 200 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1000 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 5 ;
+		lv2:symbol "sid_wrap" ;
+		lv2:name "SID Wrap" ;
+		lv2:default 100 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1000 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 6 ;
+		lv2:symbol "arg_offset" ;
+		lv2:name "Argument Offset" ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 4 ;
+		lv2:portProperty lv2:integer ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 7 ;
+		lv2:symbol "allocate" ;
+		lv2:name "Allocate" ;
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:toggled ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 8 ;
+		lv2:symbol "gate" ;
+		lv2:name "Gate" ;
+		lv2:default 1 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:toggled ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 9 ;
+		lv2:symbol "group" ;
+		lv2:name "Group" ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:toggled ;
 	] .
 		
 # Comm UI

@@ -34,6 +34,14 @@ struct _handle_t {
 
 	const LV2_Atom_Sequence *event_in;
 	LV2_Atom_Sequence *osc_out;
+	const float *out_offset;
+	const float *gid_offset;
+	const float *sid_offset;
+	const float *sid_wrap;
+	const float *arg_offset;
+	const float *allocate;
+	const float *gate;
+	const float *group;
 };
 
 static LV2_Handle
@@ -76,6 +84,33 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 		case 1:
 			handle->osc_out = (LV2_Atom_Sequence *)data;
 			break;
+
+		case 2:
+			handle->out_offset = (const float *)data;
+			break;
+		case 3:
+			handle->gid_offset = (const float *)data;
+			break;
+		case 4:
+			handle->sid_offset = (const float *)data;
+			break;
+		case 5:
+			handle->sid_wrap = (const float *)data;
+			break;
+		case 6:
+			handle->arg_offset = (const float *)data;
+			break;
+
+		case 7:
+			handle->allocate = (const float *)data;
+			break;
+		case 8:
+			handle->gate = (const float *)data;
+			break;
+		case 9:
+			handle->group = (const float *)data;
+			break;
+
 		default:
 			break;
 	}
@@ -92,34 +127,73 @@ static void
 _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	lv2_atom_forge_frame_time(forge, frames);
-	osc_forge_message_vararg(&handle->oforge, forge,
-		"/s_new", "siiiiisisi",
-		"base", cev->sid, 0, cev->gid,
-		4, cev->pid,
-		"out", cev->gid,
-		"gate", 1);
+	const int32_t out = (int32_t)floor(*handle->out_offset) + cev->gid;
+	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
+	const int32_t sid = (int32_t)floor(*handle->sid_offset)
+		+ cev->sid % (int32_t)floor(*handle->sid_wrap);
+	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
+	const int32_t arg_num = 4;
+	const int allocate = *handle->allocate != 0.f;
+	const int gate = *handle->allocate != 0.f;
+	const int group = *handle->allocate != 0.f;
+	const int32_t id = group ? gid : sid;
+
+	if(allocate)
+	{
+		lv2_atom_forge_frame_time(forge, frames);
+		osc_forge_message_vararg(&handle->oforge, forge,
+			"/s_new", "siiiiisisi",
+			"base", id, 0, gid,
+			arg_offset + 4, cev->pid,
+			"out", gid,
+			"gate", 1);
+	}
+
+	if(gate)
+	{
+		lv2_atom_forge_frame_time(forge, frames);
+		osc_forge_message_vararg(&handle->oforge, forge,
+			"/n_setn", "iiiffff",
+			id, arg_offset, arg_num,
+			cev->x, cev->z, cev->X, cev->Z);
+	}
 }
 
 static void
 _osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	lv2_atom_forge_frame_time(forge, frames);
-	osc_forge_message_vararg(&handle->oforge, forge,
-		"/n_set", "isi",
-		cev->sid,
-		"gate", 0);
+	const int32_t sid = (int32_t)floor(*handle->sid_offset) + cev->sid;
+	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
+	const int gate = *handle->allocate != 0.f;
+	const int group = *handle->allocate != 0.f;
+	const int32_t id = group ? sid : gid;
+
+	if(gate)
+	{
+		lv2_atom_forge_frame_time(forge, frames);
+		osc_forge_message_vararg(&handle->oforge, forge,
+			"/n_set", "isi",
+			id,
+			"gate", 0);
+	}
 }
 
 static void
 _osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
+	const int32_t sid = (int32_t)floor(*handle->sid_offset) + cev->sid;
+	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
+	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
+	const int32_t arg_num = 4;
+	const int group = *handle->allocate != 0.f;
+	const int32_t id = group ? sid : gid;
+
 	lv2_atom_forge_frame_time(forge, frames);
 	osc_forge_message_vararg(&handle->oforge, forge,
 		"/n_setn", "iiiffff",
-		cev->sid, 0, 4,
+		id, arg_offset, arg_num,
 		cev->x, cev->z, cev->X, cev->Z);
 }
 
@@ -141,7 +215,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
-	
+
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))
@@ -156,7 +230,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 			{
 				case CHIMAERA_STATE_ON:
 					_osc_on(handle, forge, frames, &cev);
-					// fall-through
+					break;
 				case CHIMAERA_STATE_SET:
 					_osc_set(handle, forge, frames, &cev);
 					break;
