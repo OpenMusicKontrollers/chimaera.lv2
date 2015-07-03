@@ -24,6 +24,12 @@
 typedef struct _ref_t ref_t;
 typedef struct _handle_t handle_t;
 
+enum {
+	Z_MAPPING_CONTROL_CHANGE = 0,
+	Z_MAPPING_NOTE_PRESSURE = 1,
+	Z_MAPPING_CHANNEL_PRESSURE = 2
+};
+
 struct _ref_t {
 	uint8_t chn;
 	uint8_t key;
@@ -43,6 +49,7 @@ struct _handle_t {
 
 	const LV2_Atom_Sequence *event_in;
 	const float *sensors;
+	const float *z_mapping;
 	const float *octave;
 	const float *controller;
 	LV2_Atom_Sequence *midi_out;
@@ -92,9 +99,12 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			handle->sensors = (const float *)data;
 			break;
 		case 3:
-			handle->octave = (const float *)data;
+			handle->z_mapping = (const float *)data;
 			break;
 		case 4:
+			handle->octave = (const float *)data;
+			break;
+		case 5:
 			handle->controller = (const float *)data;
 			break;
 		default:
@@ -180,10 +190,6 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t bnd_msb = bnd >> 7;
 	const uint8_t bnd_lsb = bnd & 0x7f;
 
-	const uint16_t cnt = cev->z * 0x3fff;
-	const uint8_t cnt_msb = cnt >> 7;
-	const uint8_t cnt_lsb = cnt & 0x7f;
-
 	const uint8_t bend [3] = {
 		0xe0 | chn,
 		bnd_lsb,
@@ -191,22 +197,57 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	};
 	_midi_event(handle, frames, bend, 3);
 
-	if(controller <= 0x0d)
-	{
-		const uint8_t control_lsb [3] = {
-			0xb0 | chn,
-			0x20 | controller,
-			cnt_lsb
-		};
-		_midi_event(handle, frames, control_lsb, 3);
-	}
 
-	const uint8_t control_msb [3] = {
-		0xb0 | chn,
-		controller,
-		cnt_msb
-	};
-	_midi_event(handle, frames, control_msb, 3);
+	const int z_mapping = floor(*handle->z_mapping);
+	const uint16_t eff = cev->z * 0x3fff;
+	const uint8_t eff_msb = eff >> 7;
+	const uint8_t eff_lsb = eff & 0x7f;
+
+	switch(z_mapping)
+	{
+		case Z_MAPPING_CONTROL_CHANGE:
+		{
+			if(controller <= 0x0d)
+			{
+				const uint8_t control_lsb [3] = {
+					0xb0 | chn,
+					0x20 | controller,
+					eff_lsb
+				};
+				_midi_event(handle, frames, control_lsb, 3);
+			}
+
+			const uint8_t control_msb [3] = {
+				0xb0 | chn,
+				controller,
+				eff_msb
+			};
+			_midi_event(handle, frames, control_msb, 3);
+
+			break;
+		}
+		case Z_MAPPING_NOTE_PRESSURE:
+		{
+			const uint8_t note_pressure [3] = {
+				0xa0 | chn,
+				key,
+				eff_msb
+			};
+			_midi_event(handle, frames, note_pressure, 3);
+
+			break;
+		}
+		case Z_MAPPING_CHANNEL_PRESSURE:
+		{
+			const uint8_t channel_pressure [2] = {
+				0xd0 | chn,
+				eff_msb
+			};
+			_midi_event(handle, frames, channel_pressure, 2);
+
+			break;
+		}
+	}
 }
 
 static void
