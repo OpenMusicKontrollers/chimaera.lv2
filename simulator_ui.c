@@ -117,7 +117,6 @@ static void
 _mouse_up(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
 	UI *ui = data;
-	Evas_Event_Mouse_Up *ev = event_info;
 
 	chimaera_event_t *cev = &ui->cev;
 	
@@ -226,8 +225,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->write_function = write_function;
 	ui->controller = controller;
 	
-	int i, j;
-	for(i=0; features[i]; i++)
+	for(int i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;

@@ -806,7 +806,7 @@ _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 {
 	handle_t *handle = data;
 
-	int is_redundant = strlen(fmt) == 3;
+	//int is_redundant = strlen(fmt) == 3;
 
 	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
@@ -890,7 +890,6 @@ _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
 {
 	handle_t *handle = data;
 
-	const osc_data_t *ptr = buf;
 	chimaera_event_t cev;
 	
 	cev.state = CHIMAERA_STATE_IDLE;
@@ -1219,8 +1218,7 @@ static int
 _worker_api_recv(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
-	handle_t *handle = data;
-
+	//handle_t *handle = data;
 	// do nothing
 
 	return 1;
@@ -1319,8 +1317,7 @@ _work(LV2_Handle instance,
 static LV2_Worker_Status
 _work_response(LV2_Handle instance, uint32_t size, const void *body)
 {
-	handle_t *handle = instance;
-
+	//handle_t *handle = instance;
 	// do nothing
 
 	return LV2_WORKER_SUCCESS;
@@ -1330,8 +1327,7 @@ _work_response(LV2_Handle instance, uint32_t size, const void *body)
 static LV2_Worker_Status
 _end_run(LV2_Handle instance)
 {
-	handle_t *handle = instance;
-
+	//handle_t *handle = instance;
 	// do nothing
 
 	return LV2_WORKER_SUCCESS;

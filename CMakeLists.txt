@@ -11,7 +11,7 @@ include_directories(${PROJECT_SOURCE_DIR}/osc.lv2)
 include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
-set(CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "-Wall -std=gnu99 ${CMAKE_C_FLAGS}")
 
 set(CHIMAERA_MAJOR_VERSION 0)
 set(CHIMAERA_MINOR_VERSION 1)
@@ -51,9 +51,6 @@ add_library(chimaera MODULE
 	control_out.c
 	midi_out.c
 	osc_out.c)
-if(CHIMAERA_UI_PLUGINS)
-	target_compile_definitions(chimaera PUBLIC -DCHIMAERA_UI_PLUGINS)
-endif()
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})
@@ -82,9 +79,6 @@ if(CHIMAERA_UI_PLUGINS)
 		comm_ui.c
 		visualizer_ui.c)
 	target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_UI_PLUGINS)
-	if(CHIMAERA_FAST_DISPATCH)
-		target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_FAST_DISPATCH)
-	endif()
 	target_link_libraries(chimaera_ui ${LIBS_UI})
 	set_target_properties(chimaera_ui PROPERTIES PREFIX "")
 	install(TARGETS chimaera_ui DESTINATION ${DEST})

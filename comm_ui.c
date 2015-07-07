@@ -84,7 +84,6 @@ struct _UI {
 static void
 _list_expand_request(void *data, Evas_Object *obj, void *event_info)
 {
-	UI *ui = data;
 	Elm_Object_Item *itm = event_info;
 
 	elm_genlist_item_expanded_set(itm, EINA_TRUE);
@@ -93,7 +92,6 @@ _list_expand_request(void *data, Evas_Object *obj, void *event_info)
 static void
 _list_contract_request(void *data, Evas_Object *obj, void *event_info)
 {
-	UI *ui = data;
 	Elm_Object_Item *itm = event_info;
 
 	elm_genlist_item_expanded_set(itm, EINA_FALSE);
@@ -118,12 +116,12 @@ _intro_expanded(void *data, Evas_Object *obj, void *event_info)
 
 			if(!strcmp(type->valuestring, "node"))
 			{
-				Elm_Object_Item *elmnt = elm_genlist_item_append(ui->intro, ui->itc.node,
+				elm_genlist_item_append(ui->intro, ui->itc.node,
 					child, itm, ELM_GENLIST_ITEM_TREE, NULL, NULL);
 			}
 			else
 			{
-				Elm_Object_Item *elmnt = elm_genlist_item_append(ui->intro, ui->itc.meth,
+				elm_genlist_item_append(ui->intro, ui->itc.meth,
 					child, itm, ELM_GENLIST_ITEM_TREE, NULL, NULL);
 			}
 		}
@@ -350,7 +348,6 @@ static Evas_Object *
 _intro_arg_content_get(void *data, Evas_Object *obj, const char *part)
 {
 	intro_arg_t *arg = data;
-	cJSON *parent = arg->parent;
 	cJSON *node = arg->node;
 
 	if(!strcmp(part, "elm.swallow.content"))
@@ -686,8 +683,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->write_function = write_function;
 	ui->controller = controller;
 	
-	int i, j;
-	for(i=0; features[i]; i++)
+	for(int i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;
@@ -877,7 +873,7 @@ _comm_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *body,
 	if(!strcmp(path, "/success"))
 	{
 		const LV2_Atom *itr = lv2_atom_tuple_begin(body);
-		int32_t uid = ((LV2_Atom_Int *)itr)->body;
+		//int32_t uid = ((LV2_Atom_Int *)itr)->body;
 
 		itr = lv2_atom_tuple_next(itr);
 		const char *tar = LV2_ATOM_CONTENTS_CONST(LV2_Atom_String, itr);

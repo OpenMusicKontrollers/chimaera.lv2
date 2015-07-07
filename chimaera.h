@@ -347,7 +347,6 @@ static inline void
 chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
 	chimaera_event_t *ev)
 {
-	const LV2_Atom_Forge *forge = &cforge->forge;
 	const chimaera_pack_t *pack = (const chimaera_pack_t *)atom;
 
 	uint32_t otype = pack->cobj.obj.body.otype;

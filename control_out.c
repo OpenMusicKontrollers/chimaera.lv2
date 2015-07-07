@@ -108,7 +108,7 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 static void
 activate(LV2_Handle instance)
 {
-	handle_t *handle = (handle_t *)instance;
+	//handle_t *handle = (handle_t *)instance;
 	//nothing
 }
 
@@ -125,8 +125,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))
 		{
-			int64_t frames = ev->time.frames;
-			size_t len = ev->body.size;
 			chimaera_event_t cev;
 
 			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
@@ -166,7 +164,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 static void
 deactivate(LV2_Handle instance)
 {
-	handle_t *handle = (handle_t *)instance;
+	//handle_t *handle = (handle_t *)instance;
 	//nothing
 }
 

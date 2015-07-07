@@ -205,8 +205,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->write_function = write_function;
 	ui->controller = controller;
 	
-	int i, j;
-	for(i=0; features[i]; i++)
+	for(int i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			ui->map = (LV2_URID_Map *)features[i]->data;
