@@ -23,26 +23,20 @@ lv2_descriptor(uint32_t index)
 	switch(index)
 	{
 		case 0:
-			return &dummy_in;
-		case 1:
-			return &tuio2_in;
-		case 2:
 			return &filter;
-		case 3:
+		case 1:
 			return &control_out;
-		case 4:
+		case 2:
 			return &midi_out;
-		case 5:
+		case 3:
 			return &osc_out;
-		case 6:
+		case 4:
 			return &mapper;
-		case 7:
+		case 5:
 			return &simulator;
-		case 8:
+		case 6:
 			return &visualizer;
-		case 9:
-			return &dump_in;
-		case 10:
+		case 7:
 			return &comm;
 		default:
 			return NULL;

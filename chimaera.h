@@ -51,10 +51,6 @@
 #define CHIMAERA_DUMP_URI					CHIMAERA_URI"#dump"
 
 // plugin uris
-#define CHIMAERA_DUMMY_IN_URI			CHIMAERA_URI"#dummy_in"
-#define CHIMAERA_TUIO2_IN_URI			CHIMAERA_URI"#tuio2_in"
-#define CHIMAERA_DUMP_IN_URI			CHIMAERA_URI"#dump_in"
-
 #define CHIMAERA_FILTER_URI				CHIMAERA_URI"#filter"
 #define CHIMAERA_MAPPER_URI				CHIMAERA_URI"#mapper"
 #define CHIMAERA_CONTROL_OUT_URI	CHIMAERA_URI"#control_out"
@@ -64,9 +60,6 @@
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
 
-const LV2_Descriptor dummy_in;
-const LV2_Descriptor dump_in;
-const LV2_Descriptor tuio2_in;
 const LV2_Descriptor filter;
 const LV2_Descriptor mapper;
 const LV2_Descriptor control_out;
