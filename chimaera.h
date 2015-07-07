@@ -60,14 +60,14 @@
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
 
-const LV2_Descriptor filter;
-const LV2_Descriptor mapper;
-const LV2_Descriptor control_out;
-const LV2_Descriptor midi_out;
-const LV2_Descriptor osc_out;
-const LV2_Descriptor simulator;
-const LV2_Descriptor visualizer;
-const LV2_Descriptor comm;
+extern const LV2_Descriptor filter;
+extern const LV2_Descriptor mapper;
+extern const LV2_Descriptor control_out;
+extern const LV2_Descriptor midi_out;
+extern const LV2_Descriptor osc_out;
+extern const LV2_Descriptor simulator;
+extern const LV2_Descriptor visualizer;
+extern const LV2_Descriptor comm;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
@@ -86,20 +86,20 @@ const LV2_Descriptor comm;
 #	define CHIMAERA_COMM_X11_URI			CHIMAERA_URI"#comm_x11"
 #	define CHIMAERA_COMM_KX_URI				CHIMAERA_URI"#comm_kx"
 
-const LV2UI_Descriptor simulator_eo;
-const LV2UI_Descriptor simulator_ui;
-const LV2UI_Descriptor simulator_x11;
-const LV2UI_Descriptor simulator_kx;
+extern const LV2UI_Descriptor simulator_eo;
+extern const LV2UI_Descriptor simulator_ui;
+extern const LV2UI_Descriptor simulator_x11;
+extern const LV2UI_Descriptor simulator_kx;
 
-const LV2UI_Descriptor visualizer_eo;
-const LV2UI_Descriptor visualizer_ui;
-const LV2UI_Descriptor visualizer_x11;
-const LV2UI_Descriptor visualizer_kx;
+extern const LV2UI_Descriptor visualizer_eo;
+extern const LV2UI_Descriptor visualizer_ui;
+extern const LV2UI_Descriptor visualizer_x11;
+extern const LV2UI_Descriptor visualizer_kx;
 
-const LV2UI_Descriptor comm_eo;
-const LV2UI_Descriptor comm_ui;
-const LV2UI_Descriptor comm_x11;
-const LV2UI_Descriptor comm_kx;
+extern const LV2UI_Descriptor comm_eo;
+extern const LV2UI_Descriptor comm_ui;
+extern const LV2UI_Descriptor comm_x11;
+extern const LV2UI_Descriptor comm_kx;
 #endif
 
 // bundle enums and structs
