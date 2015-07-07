@@ -46,6 +46,9 @@ struct _handle_t {
 	ref_t ref [CHIMAERA_DICT_SIZE];
 	float bot;
 	float ran;
+	float ran_1; // 1 / ran
+	int n;
+	int oct;
 
 	const LV2_Atom_Sequence *event_in;
 	const float *sensors;
@@ -130,7 +133,7 @@ _midi_event(handle_t *handle, int64_t frames, const uint8_t *m, size_t len)
 	lv2_atom_forge_pad(forge, len);
 }
 
-static void
+static inline void
 _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_add(handle->dict, cev->sid);
@@ -154,7 +157,7 @@ _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	ref->key = key;
 }
 
-static void
+static inline void
 _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_del(handle->dict, cev->sid);
@@ -173,7 +176,7 @@ _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	_midi_event(handle, frames, note_off, 3);
 }
 
-static void
+static inline void
 _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_ref(handle->dict, cev->sid);
@@ -186,7 +189,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t chn = ref->chn;
 	const uint8_t key = ref->key;
 
-	const uint16_t bnd = (val-key) / handle->ran * 0x2000 + 0x1fff;
+	const uint16_t bnd = (val-key) * handle->ran_1 * 0x2000 + 0x1fff;
 	const uint8_t bnd_msb = bnd >> 7;
 	const uint8_t bnd_lsb = bnd & 0x7f;
 
@@ -250,7 +253,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	}
 }
 
-static void
+static inline void
 _midi_idle(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	chimaera_dict_clear(handle->dict);
@@ -264,8 +267,18 @@ run(LV2_Handle instance, uint32_t nsamples)
 	int n = *handle->sensors;
 	int oct = *handle->octave;
 
-	handle->bot = oct*12.f - 0.5 - (n % 18 / 6.f);
-	handle->ran = (float)n / 3.f;
+	if(n != handle->n)
+	{
+		handle->n = n;
+		handle->ran = (float)n / 3.f;
+		handle->ran_1 = 1.f / handle->ran;
+	}
+
+	if(oct != handle->oct)
+	{
+		handle->oct = oct;
+		handle->bot = oct*12.f - 0.5 - (n % 18 / 6.f);
+	}
 
 	// prepare midi atom forge
 	const uint32_t capacity = handle->midi_out->atom.size;
@@ -278,8 +291,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	{
 		if(chimaera_event_check_type(&handle->cforge, &ev->body))
 		{
-			int64_t frames = ev->time.frames;
-			size_t len = ev->body.size;
+			const int64_t frames = ev->time.frames;
 			chimaera_event_t cev;
 
 			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
