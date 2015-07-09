@@ -33,13 +33,36 @@
 #define BUF_SIZE 0x10000
 
 typedef enum _plugstate_t plugstate_t;
+typedef struct _pos_t pos_t;
 typedef struct _dummy_ref_t dummy_ref_t;
 typedef struct _tuio2_ref_t tuio2_ref_t;
 typedef struct _handle_t handle_t;
 
+struct _pos_t {
+	uint64_t stamp;
+
+	float x;
+	float z;
+	float a;
+	struct {
+		float f1;
+		float f11;
+	} vx;
+	struct {
+		float f1;
+		float f11;
+	} vz;
+	float v;
+	float A;
+	float m;
+	float R;
+};
+
 struct _dummy_ref_t {
 	uint32_t gid;
 	uint32_t pid;
+
+	pos_t pos;
 };
 
 enum _plugstate_t {
@@ -53,14 +76,8 @@ enum _plugstate_t {
 struct _tuio2_ref_t {
 	uint32_t gid;
 	uint32_t tuid;
-	float x;
-	float z;
-	float a;
-	float X;
-	float Z;
-	float A;
-	float m;
-	float R;
+
+	pos_t pos;
 };
 
 struct _handle_t {
@@ -72,6 +89,11 @@ struct _handle_t {
 		LV2_URID chimaera_comm_url;
 		LV2_URID chimaera_data_url;
 	} uris;
+
+	float rate;
+	float s;
+	float sm1;
+	uint64_t stamp;
 
 	struct {
 		chimaera_dict_t dict [CHIMAERA_DICT_SIZE];
@@ -569,6 +591,82 @@ _data_through(osc_time_t timestamp, const char *path, const char *fmt,
 	return 0;
 }
 
+static inline void
+_pos_init(pos_t *dst, uint64_t stamp)
+{
+	dst->stamp = stamp;
+	dst->x = 0.f;
+	dst->z = 0.f;
+	dst->a = 0.f;
+	dst->vx.f1 = 0.f;
+	dst->vx.f11 = 0.f;
+	dst->vz.f1 = 0.f;
+	dst->vz.f11 = 0.f;
+	dst->v = 0.f;
+	dst->A = 0.f;
+	dst->m = 0.f;
+	dst->R = 0.f;
+	
+	//memset(dst, 0x0, sizeof(pos_t));
+}
+
+static inline void
+_pos_clone(pos_t *dst, pos_t *src)
+{
+	dst->stamp = src->stamp;
+	dst->x = src->x;
+	dst->z = src->z;
+	dst->a = src->a;
+	dst->vx.f1 = src->vx.f1;
+	dst->vx.f11 = src->vx.f11;
+	dst->vz.f1 = src->vz.f1;
+	dst->vz.f11 = src->vz.f11;
+	dst->v = src->v;
+	dst->A = src->A;
+	dst->m = src->m;
+	dst->R = src->R;
+	
+	//memcpy(dst, src, sizeof(pos_t));
+}
+
+static inline void
+_pos_deriv(handle_t *handle, pos_t *neu, pos_t *old)
+{
+	if(neu->stamp <= old->stamp)
+	{
+		neu->stamp = old->stamp;
+		neu->vx.f1 = old->vx.f1;
+		neu->vx.f11 = old->vx.f11;
+		neu->vz.f1 = old->vz.f1;
+		neu->vz.f11 = old->vz.f11;
+		neu->v = old->v;
+		neu->A = old->A;
+		neu->m = old->m;
+		neu->R = old->R;
+	}
+	else
+	{
+		float rate = handle->rate / (neu->stamp - old->stamp);
+
+		float dx = neu->x - old->x;
+		neu->vx.f1 = dx * rate;
+
+		float dz = neu->z - old->z;
+		neu->vz.f1 = dz * rate;
+
+		// first-order IIR filter
+		neu->vx.f11 = handle->s*(neu->vx.f1 + old->vx.f1) + old->vx.f11*handle->sm1;
+		neu->vz.f11 = handle->s*(neu->vz.f1 + old->vz.f1) + old->vz.f11*handle->sm1;
+
+		neu->v = sqrtf(neu->vx.f11 * neu->vx.f11 + neu->vz.f11 * neu->vz.f11);
+
+		float dv =  neu->v - old->v;
+		neu->A = 0.f;
+		neu->m = dv * rate;
+		neu->R = 0.f;
+	}
+}
+
 // rt
 static int
 _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
@@ -614,6 +712,8 @@ _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
+	pos_t pos;
+	_pos_init(&pos, handle->stamp);
 
 	int has_derivatives = strlen(fmt) == 11;
 
@@ -632,27 +732,24 @@ _tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
 
 	ptr = osc_get_int32(ptr, (int32_t *)&ref->tuid);
 	ptr = osc_get_int32(ptr, (int32_t *)&ref->gid);
-	ptr = osc_get_float(ptr, &ref->x);
-	ptr = osc_get_float(ptr, &ref->z);
-	ptr = osc_get_float(ptr, &ref->a);
+	ptr = osc_get_float(ptr, &pos.x);
+	ptr = osc_get_float(ptr, &pos.z);
+	ptr = osc_get_float(ptr, &pos.a);
 
 	if(has_derivatives)
 	{
-		ptr = osc_get_float(ptr, &ref->X);
-		ptr = osc_get_float(ptr, &ref->Z);
-		ptr = osc_get_float(ptr, &ref->A);
-		ptr = osc_get_float(ptr, &ref->m);
-		ptr = osc_get_float(ptr, &ref->R);
+		ptr = osc_get_float(ptr, &pos.vx.f11);
+		ptr = osc_get_float(ptr, &pos.vz.f11);
+		ptr = osc_get_float(ptr, &pos.A);
+		ptr = osc_get_float(ptr, &pos.m);
+		ptr = osc_get_float(ptr, &pos.R);
 	}
-	else
+	else // !has_derivatives
 	{
-		ref->X = 0.f;
-		ref->Z = 0.f;
-		ref->A = 0.f;
-		ref->m = 0.f;
-		ref->R = 0.f;
-		//TODO calculate !
+		_pos_deriv(handle, &pos, &ref->pos);
 	}
+
+	_pos_clone(&ref->pos, &pos);
 
 	return 1;
 }
@@ -704,10 +801,10 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 			cev.sid = sid;
 			cev.gid = src->gid;
 			cev.pid = src->tuid & 0xffff;
-			cev.x = src->x;
-			cev.z = src->z;
-			cev.X = src->X;
-			cev.Z = src->Z;
+			cev.x = src->pos.x;
+			cev.z = src->pos.z;
+			cev.X = src->pos.vx.f11;
+			cev.Z = src->pos.vz.f11;
 
 			_chim_event(handle, timestamp, &cev);
 		}
@@ -719,10 +816,10 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 		cev.sid = sid;
 		cev.gid = dst->gid;
 		cev.pid = dst->tuid & 0xffff;
-		cev.x = dst->x;
-		cev.z = dst->z;
-		cev.X = dst->X;
-		cev.Z = dst->Z;
+		cev.x = dst->pos.x;
+		cev.z = dst->pos.z;
+		cev.X = dst->pos.vx.f11;
+		cev.Z = dst->pos.vz.f11;
 
 		// was it registered in previous step?
 		if(!chimaera_dict_ref(handle->tuio2.dict[!handle->tuio2.pos], sid))
@@ -759,6 +856,8 @@ _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
+	pos_t pos;
+	_pos_init(&pos, handle->stamp);
 
 	int has_derivatives = strlen(fmt) == 7;
 
@@ -779,20 +878,20 @@ _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 	ptr = osc_get_int32(ptr, (int32_t *)&cev.pid);
 	ref->pid = cev.pid;
 
-	ptr = osc_get_float(ptr, &cev.x);
-	ptr = osc_get_float(ptr, &cev.z);
+	ptr = osc_get_float(ptr, &pos.x);
+	ptr = osc_get_float(ptr, &pos.z);
 
 	if(has_derivatives)
 	{
-		ptr = osc_get_float(ptr, &cev.X);
-		ptr = osc_get_float(ptr, &cev.Z);
+		ptr = osc_get_float(ptr, &pos.vx.f11);
+		ptr = osc_get_float(ptr, &pos.vz.f11);
 	}
-	else
-	{
-		cev.X = 0.f;
-		cev.Z = 0.f;
-		//TODO calculate !
-	}
+
+	_pos_clone(&ref->pos, &pos);
+	cev.x = ref->pos.x;
+	cev.z = ref->pos.z;
+	cev.X = ref->pos.vx.f11;
+	cev.Z = ref->pos.vz.f11;
 
 	_chim_event(handle, timestamp, &cev);
 
@@ -821,10 +920,10 @@ _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 
 	cev.gid = ref->gid;
 	cev.pid = ref->pid;
-	cev.x = 0.f;
-	cev.z = 0.f;
-	cev.X = 0.f;
-	cev.Z = 0.f;
+	cev.x = ref->pos.x;
+	cev.z = ref->pos.z;
+	cev.X = ref->pos.vx.f11;
+	cev.Z = ref->pos.vz.f11;
 
 	_chim_event(handle, timestamp, &cev);
 
@@ -837,6 +936,8 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
+	pos_t pos;
+	_pos_init(&pos, handle->stamp);
 
 	int is_redundant = fmt[2] == 'i';
 	int has_derivatives = is_redundant
@@ -864,19 +965,24 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 	cev.gid = ref->gid;
 	cev.pid = ref->pid;
 
-	ptr = osc_get_float(ptr, &cev.x);
-	ptr = osc_get_float(ptr, &cev.z);
+	ptr = osc_get_float(ptr, &pos.x);
+	ptr = osc_get_float(ptr, &pos.z);
 
 	if(has_derivatives)
 	{
-		ptr = osc_get_float(ptr, &cev.X);
-		ptr = osc_get_float(ptr, &cev.Z);
+		ptr = osc_get_float(ptr, &pos.vx.f11);
+		ptr = osc_get_float(ptr, &pos.vz.f11);
 	}
 	else
 	{
-		cev.X = 0.f;
-		cev.Z = 0.f;
+		_pos_deriv(handle, &pos, &ref->pos);
 	}
+
+	_pos_clone(&ref->pos, &pos);
+	cev.x = ref->pos.x;
+	cev.z = ref->pos.z;
+	cev.X = ref->pos.vx.f11;
+	cev.Z = ref->pos.vz.f11;
 
 	_chim_event(handle, timestamp, &cev);
 
@@ -1089,6 +1195,11 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	if(!handle)
 		return NULL;
 
+	handle->rate = rate;
+	handle->s = 1.f / 32.f; //FIXME make stiffness configurable
+	handle->sm1 = 1.f - handle->s;
+	handle->s *= 0.5;
+
 	for(i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
@@ -1199,6 +1310,8 @@ activate(LV2_Handle instance)
 
 	handle->comm.restored = 1;
 	handle->data.restored = 1;
+
+	handle->stamp = 0;
 }
 
 // non-rt
@@ -1355,6 +1468,7 @@ _comm_url_change(handle_t *handle, const char *url)
 	{
 		LV2_Worker_Status status = handle->sched->schedule_work(
 			handle->sched->handle, ptr - buf, buf);
+		(void)status;
 		//TODO check status
 	}
 }
@@ -1375,6 +1489,7 @@ _data_url_change(handle_t *handle, const char *url)
 	{
 		LV2_Worker_Status status = handle->sched->schedule_work(
 			handle->sched->handle, ptr - buf, buf);
+		(void)status;
 		//TODO check status
 	}
 }
@@ -1389,6 +1504,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	const osc_data_t *ptr;
 	size_t size;
 	handle->comm.needs_flushing = 0;
+
+	handle->stamp += nsamples;
 
 	// handle TUIO reset toggle
 	int reset = *handle->reset_in > 0.f ? 1 : 0;
@@ -1421,12 +1538,14 @@ run(LV2_Handle instance, uint32_t nsamples)
 	{
 		LV2_Worker_Status status = handle->sched->schedule_work(
 			handle->sched->handle, sizeof(flush_msg), flush_msg);
+		(void)status;
 		//TODO check status
 	}
 	else
 	{
 		LV2_Worker_Status status = handle->sched->schedule_work(
 			handle->sched->handle, sizeof(recv_msg), recv_msg);
+		(void)status;
 		//TODO check status
 	}
 

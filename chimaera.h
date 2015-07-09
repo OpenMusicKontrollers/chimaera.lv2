@@ -127,6 +127,7 @@ struct _chimaera_event_t {
 	float z;
 	float X;
 	float Z;
+	float m; //TODO
 };
 
 struct _chimaera_obj_t {
