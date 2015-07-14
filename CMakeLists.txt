@@ -8,6 +8,8 @@ include_directories(${PROJECT_SOURCE_DIR}/libosc_stream)
 include_directories(${PROJECT_SOURCE_DIR}/inlist)
 include_directories(${PROJECT_SOURCE_DIR}/eo_ui.lv2)
 include_directories(${PROJECT_SOURCE_DIR}/osc.lv2)
+include_directories(${PROJECT_SOURCE_DIR}/clock_sync.lv2)
+include_directories(${PROJECT_SOURCE_DIR}/tlsf-3.0)
 include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
@@ -41,6 +43,7 @@ option(CHIMAERA_UI_PLUGINS "Build Chimaera UI plugins" ON)
 
 add_library(chimaera MODULE
 	cjson/cJSON.c
+	tlsf-3.0/tlsf.c
 
 	chimaera.c
 	filter.c

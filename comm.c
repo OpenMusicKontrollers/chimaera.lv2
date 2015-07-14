@@ -24,15 +24,19 @@
 #include <osc.h>
 #include <osc_stream.h>
 #include <lv2_osc.h>
+#include <clock_sync.h>
 #include <varchunk.h>
+#include <tlsf.h>
 
 #if defined(_WIN32)
 #	include <avrt.h>
 #endif
 
+#define POOL_SIZE 0x20000 // 128KB
 #define BUF_SIZE 0x10000
 
 typedef enum _plugstate_t plugstate_t;
+typedef struct _list_t list_t;
 typedef struct _pos_t pos_t;
 typedef struct _dummy_ref_t dummy_ref_t;
 typedef struct _tuio2_ref_t tuio2_ref_t;
@@ -78,6 +82,14 @@ struct _tuio2_ref_t {
 	uint32_t tuid;
 
 	pos_t pos;
+};
+
+struct _list_t {
+	list_t *next;
+	uint64_t frames;
+
+	size_t size;
+	osc_data_t buf [0];
 };
 
 struct _handle_t {
@@ -127,6 +139,12 @@ struct _handle_t {
 	LV2_Worker_Schedule *sched;
 	LV2_Worker_Respond_Function respond;
 	LV2_Worker_Respond_Handle target;
+	
+	Clock_Sync_Schedule *clock_sched;
+	uint64_t last_frame;
+	list_t *list;
+	uint8_t mem [POOL_SIZE];
+	tlsf_t tlsf;
 
 	struct {
 		osc_stream_driver_t driver;
@@ -147,11 +165,34 @@ struct _handle_t {
 		volatile int reconnection_requested;
 		volatile int restored;
 		char url [512];
+		int frame_cnt;
+		LV2_Atom_Forge_Frame frame [32][2]; // 32 nested bundles should be enough
 	} data;
 };
 
 const char flush_msg [] = "/chimaera/flush\0,\0\0\0";
 const char recv_msg [] = "/chimaera/recv\0\0,\0\0\0";
+
+static inline list_t *
+_list_insert(list_t *root, list_t *item)
+{
+	if(!root || (item->frames < root->frames) ) // prepend
+	{
+		item->next = root;
+		return item;
+	}
+
+	list_t *l0;
+	for(l0 = root; l0->next != NULL; l0 = l0->next)
+	{
+		if(item->frames < l0->next->frames)
+			break; // found insertion point
+	}
+
+	item->next = l0->next; // is NULL at end of list
+	l0->next = item;
+	return root;
+}
 
 static LV2_State_Status
 _state_save(LV2_Handle instance, LV2_State_Store_Function store,
@@ -1186,6 +1227,62 @@ _ui_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	}
 }
 
+// rt
+static void
+_unroll_stamp(osc_time_t stamp, void *data)
+{
+	//handle_t *handle = data;
+
+	//FIXME
+}
+
+// rt
+static void
+_unroll_message(const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	osc_dispatch_method(buf, size, data_methods, NULL, NULL, handle);
+}
+
+// rt
+static void
+_unroll_bundle(const osc_data_t *buf, size_t size, void *data)
+{
+	handle_t *handle = data;
+
+	uint64_t time = be64toh(*(uint64_t *)(buf + 8));
+
+	uint64_t frames;
+	if(handle->clock_sched)
+		frames = handle->clock_sched->time2frames(handle->clock_sched->handle, time);
+	else
+		frames = 0;
+
+	frames = frames
+		? frames
+		: handle->last_frame;
+
+	// add event to list
+	list_t *l = tlsf_malloc(handle->tlsf, sizeof(list_t) + size);
+	if(l)
+	{
+		l->frames = frames;
+		l->size = size;
+		memcpy(l->buf, buf, size);
+
+		handle->list = _list_insert(handle->list, l);
+	}
+	else
+		; //lprintf(handle, handle->uris.log_trace, "message pool overflow"); FIXME
+}
+
+static const osc_unroll_inject_t inject = {
+	.stamp = _unroll_stamp,
+	.message = _unroll_message,
+	.bundle = _unroll_bundle
+};
+
 static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate,
 	const char *bundle_path, const LV2_Feature *const *features)
@@ -1206,6 +1303,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 			handle->map = (LV2_URID_Map *)features[i]->data;
 		else if(!strcmp(features[i]->URI, LV2_WORKER__schedule))
 			handle->sched = (LV2_Worker_Schedule *)features[i]->data;
+		else if(!strcmp(features[i]->URI, CLOCK_SYNC__schedule))
+			handle->clock_sched = features[i]->data;
 	}
 
 	if(!handle->map)
@@ -1220,6 +1319,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		free(handle);
 		return NULL;
 	}
+
+	handle->tlsf = tlsf_create_with_pool(handle->mem, POOL_SIZE);
 	
 	chimaera_forge_init(&handle->cforge, handle->map);
 	osc_forge_init(&handle->oforge, handle->map);
@@ -1417,7 +1518,7 @@ _work(LV2_Handle instance,
 	handle->respond = respond;
 	handle->target = target;
 
-	osc_dispatch_method(OSC_IMMEDIATE, body, size, worker_api, NULL, NULL, handle);
+	osc_dispatch_method(body, size, worker_api, NULL, NULL, handle);
 	uv_run(&handle->loop, UV_RUN_NOWAIT);
 
 	handle->respond = NULL;
@@ -1555,7 +1656,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		osc_dispatch_method(OSC_IMMEDIATE, ptr, size,
+		osc_dispatch_method(ptr, size,
 			comm_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
@@ -1568,11 +1669,43 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->data.from_worker, &size)))
 	{
-		osc_dispatch_method(OSC_IMMEDIATE, ptr, size,
-			data_methods, NULL, NULL, handle);
+		if(osc_check_packet(ptr, size))
+			osc_unroll_packet((osc_data_t *)ptr, size, OSC_UNROLL_MODE_PARTIAL, &inject, handle);
 
 		varchunk_read_advance(handle->data.from_worker);
 	}
+	
+	// handle scheduled bundles
+	list_t *l;
+	for(l = handle->list; l; )
+	{
+		int64_t rel = l->frames - handle->last_frame;
+
+		if(rel < 0) // late event
+		{
+			//lprintf(handle, handle->uris.log_trace, "late event: %li", rel); FIXME
+			rel = 0;
+		}
+		else if(rel >= nsamples) // not scheduled for this period
+		{
+			break;
+		}
+
+		uint64_t time = be64toh(*(uint64_t *)(l->buf + 8));
+
+		lv2_atom_forge_frame_time(forge, rel);
+		//TODO check return
+		osc_forge_bundle_push(&handle->oforge, forge,
+			handle->data.frame[handle->data.frame_cnt++], time);
+		osc_dispatch_method(l->buf, l->size, data_methods, NULL, NULL, handle);
+		osc_forge_bundle_pop(&handle->oforge, forge,
+			handle->data.frame[--handle->data.frame_cnt]);
+
+		list_t *l0 = l;
+		l = l->next;
+		tlsf_free(handle->tlsf, l0);
+	}
+	handle->list = l;
 	lv2_atom_forge_pop(forge, &frame);
 
 	if(handle->comm.restored)
@@ -1607,6 +1740,7 @@ cleanup(LV2_Handle instance)
 {
 	handle_t *handle = (handle_t *)instance;
 
+	tlsf_destroy(handle->tlsf);
 	varchunk_free(handle->comm.from_worker);
 	varchunk_free(handle->comm.to_worker);
 	varchunk_free(handle->data.from_worker);
