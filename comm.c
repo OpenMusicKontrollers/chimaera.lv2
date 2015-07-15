@@ -24,7 +24,6 @@
 #include <osc.h>
 #include <osc_stream.h>
 #include <lv2_osc.h>
-#include <clock_sync.h>
 #include <varchunk.h>
 #include <tlsf.h>
 
@@ -146,7 +145,7 @@ struct _handle_t {
 	LV2_Worker_Respond_Function respond;
 	LV2_Worker_Respond_Handle target;
 	
-	Clock_Sync_Schedule *clock_sched;
+	osc_schedule_t *osc_sched;
 	list_t *list;
 	uint8_t mem [POOL_SIZE];
 	tlsf_t tlsf;
@@ -1294,8 +1293,8 @@ _unroll_bundle(const osc_data_t *buf, size_t size, void *data)
 	uint64_t time = be64toh(*(uint64_t *)(buf + 8));
 
 	int64_t frames;
-	if(handle->clock_sched)
-		frames = handle->clock_sched->schedule(handle->clock_sched->handle, time);
+	if(handle->osc_sched)
+		frames = handle->osc_sched->osc2frames(handle->osc_sched->handle, time);
 	else
 		frames = 0;
 
@@ -1339,8 +1338,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 			handle->map = (LV2_URID_Map *)features[i]->data;
 		else if(!strcmp(features[i]->URI, LV2_WORKER__schedule))
 			handle->sched = (LV2_Worker_Schedule *)features[i]->data;
-		else if(!strcmp(features[i]->URI, CLOCK_SYNC__schedule))
-			handle->clock_sched = features[i]->data;
+		else if(!strcmp(features[i]->URI, OSC__schedule))
+			handle->osc_sched = features[i]->data;
 		else if(!strcmp(features[i]->URI, LV2_LOG__log))
 			handle->log = features[i]->data;
 	}
