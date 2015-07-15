@@ -86,7 +86,7 @@ struct _tuio2_ref_t {
 
 struct _list_t {
 	list_t *next;
-	uint64_t frames;
+	int64_t frames;
 
 	size_t size;
 	osc_data_t buf [0];
@@ -100,7 +100,13 @@ struct _handle_t {
 	struct {
 		LV2_URID chimaera_comm_url;
 		LV2_URID chimaera_data_url;
+
+		LV2_URID log_note;
+		LV2_URID log_error;
+		LV2_URID log_trace;
 	} uris;
+	
+	LV2_Log_Log *log;
 
 	float rate;
 	float s;
@@ -141,10 +147,10 @@ struct _handle_t {
 	LV2_Worker_Respond_Handle target;
 	
 	Clock_Sync_Schedule *clock_sched;
-	uint64_t last_frame;
 	list_t *list;
 	uint8_t mem [POOL_SIZE];
 	tlsf_t tlsf;
+	int64_t rel;
 
 	struct {
 		osc_stream_driver_t driver;
@@ -192,6 +198,33 @@ _list_insert(list_t *root, list_t *item)
 	item->next = l0->next; // is NULL at end of list
 	l0->next = item;
 	return root;
+}
+
+static void
+lprintf(handle_t *handle, LV2_URID type, const char *fmt, ...)
+{
+	if(handle->log)
+	{
+		va_list args;
+		va_start(args, fmt);
+		handle->log->vprintf(handle->log->handle, type, fmt, args);
+		va_end(args);
+	}
+	else if(type != handle->uris.log_trace)
+	{
+		const char *type_str = NULL;
+		if(type == handle->uris.log_note)
+			type_str = "Note";
+		else if(type == handle->uris.log_error)
+			type_str = "Error";
+
+		fprintf(stderr, "[%s]", type_str);
+		va_list args;
+		va_start(args, fmt);
+		vfprintf(stderr, fmt, args);
+		va_end(args);
+		fputc('\n', stderr);
+	}
 }
 
 static LV2_State_Status
@@ -445,14 +478,15 @@ _comm_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 // rt
 static void
 _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size)
+	const osc_data_t *buf, size_t size, int frame_cnt)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	LV2_Atom_Forge_Frame frame [2];
 
 	const osc_data_t *ptr = buf;
 
-	lv2_atom_forge_frame_time(forge, 0); //TODO
+	if(!frame_cnt)
+		lv2_atom_forge_frame_time(forge, handle->rel);
 	osc_forge_message_push(&handle->oforge, forge, frame, path, fmt);
 
 	for(const char *type = fmt; *type; type++)
@@ -544,14 +578,14 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 {
 	handle_t *handle = data;
 
-	_osc_atom_serialize(handle, path, fmt, buf, size);	
+	_osc_atom_serialize(handle, path, fmt, buf, size, 0);
 
 	return 1;
 }
 
 // rt
 static inline void
-_chim_event(handle_t *handle, osc_time_t frames, chimaera_event_t *cev)
+_chim_event(handle_t *handle, int64_t frames, chimaera_event_t *cev)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 
@@ -626,10 +660,9 @@ _data_through(osc_time_t timestamp, const char *path, const char *fmt,
 {
 	handle_t *handle = data;
 
-	if(*handle->through_in != 0.f)
-		_osc_atom_serialize(handle, path, fmt, buf, size);	
+	_osc_atom_serialize(handle, path, fmt, buf, size, handle->data.frame_cnt);
 
-	return 0;
+	return 1;
 }
 
 static inline void
@@ -742,7 +775,10 @@ _tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
 		handle->tuio2.ignore = 0;
 	}
 	else
+	{
+		lprintf(handle, handle->uris.log_trace, "ignore event: %u", fid);
 		handle->tuio2.ignore = 1;
+	}
 
 	return 1;
 }
@@ -847,7 +883,7 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 			cev.X = src->pos.vx.f11;
 			cev.Z = src->pos.vz.f11;
 
-			_chim_event(handle, timestamp, &cev);
+			_chim_event(handle, handle->rel, &cev);
 		}
 	}
 
@@ -868,7 +904,7 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 		else
 			cev.state = CHIMAERA_STATE_SET;
 
-		_chim_event(handle, timestamp, &cev);
+		_chim_event(handle, handle->rel, &cev);
 	}
 
 	if(!n && !handle->tuio2.n)
@@ -883,7 +919,7 @@ _tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
 		cev.X = 0.f;
 		cev.Z = 0.f;
 
-		_chim_event(handle, timestamp, &cev);
+		_chim_event(handle, handle->rel, &cev);
 	}
 
 	handle->tuio2.n = n;
@@ -934,7 +970,7 @@ _dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, timestamp, &cev);
+	_chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -966,7 +1002,7 @@ _dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, timestamp, &cev);
+	_chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -1025,7 +1061,7 @@ _dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, timestamp, &cev);
+	_chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -1049,7 +1085,7 @@ _dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
 	cev.X = 0.f;
 	cev.Z = 0.f;
 
-	_chim_event(handle, timestamp, &cev);
+	_chim_event(handle, handle->rel, &cev);
 
 	chimaera_dict_clear(handle->dummy.dict);
 
@@ -1082,7 +1118,7 @@ _dump(osc_time_t timestamp, const char *path, const char *fmt,
 		values[i] = val;
 	}
 
-	lv2_atom_forge_frame_time(forge, timestamp);
+	lv2_atom_forge_frame_time(forge, handle->rel);
 	chimaera_dump_forge(&handle->cforge, values, sensors);
 
 	return 1;
@@ -1107,8 +1143,6 @@ static const osc_method_t data_methods [] = {
 	{"/stream/connect", "", _data_connect},
 	{"/stream/disconnect", "", _data_disconnect},
 
-	{NULL, NULL, _data_through},
-
 	{"/tuio2/frm", "itis", _tuio2_frm},
 	{"/tuio2/tok", "iiifff", _tuio2_tok},
 	{"/tuio2/tok", "iiiffffffff", _tuio2_tok},
@@ -1126,6 +1160,12 @@ static const osc_method_t data_methods [] = {
 	
 	{"/dump", "ib", _dump},
 
+	{NULL, NULL, NULL}
+};
+
+static const osc_method_t through_methods [] = {
+	{NULL, NULL, _data_through},
+	
 	{NULL, NULL, NULL}
 };
 
@@ -1253,15 +1293,11 @@ _unroll_bundle(const osc_data_t *buf, size_t size, void *data)
 
 	uint64_t time = be64toh(*(uint64_t *)(buf + 8));
 
-	uint64_t frames;
+	int64_t frames;
 	if(handle->clock_sched)
-		frames = handle->clock_sched->time2frames(handle->clock_sched->handle, time);
+		frames = handle->clock_sched->schedule(handle->clock_sched->handle, time);
 	else
 		frames = 0;
-
-	frames = frames
-		? frames
-		: handle->last_frame;
 
 	// add event to list
 	list_t *l = tlsf_malloc(handle->tlsf, sizeof(list_t) + size);
@@ -1274,7 +1310,7 @@ _unroll_bundle(const osc_data_t *buf, size_t size, void *data)
 		handle->list = _list_insert(handle->list, l);
 	}
 	else
-		; //lprintf(handle, handle->uris.log_trace, "message pool overflow"); FIXME
+		lprintf(handle, handle->uris.log_trace, "message pool overflow");
 }
 
 static const osc_unroll_inject_t inject = {
@@ -1305,6 +1341,8 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 			handle->sched = (LV2_Worker_Schedule *)features[i]->data;
 		else if(!strcmp(features[i]->URI, CLOCK_SYNC__schedule))
 			handle->clock_sched = features[i]->data;
+		else if(!strcmp(features[i]->URI, LV2_LOG__log))
+			handle->log = features[i]->data;
 	}
 
 	if(!handle->map)
@@ -1332,6 +1370,13 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		CHIMAERA_COMM_URL_URI);
 	handle->uris.chimaera_data_url = handle->map->map(handle->map->handle,
 		CHIMAERA_DATA_URL_URI);
+
+	handle->uris.log_note = handle->map->map(handle->map->handle,
+		LV2_LOG__Note);
+	handle->uris.log_error = handle->map->map(handle->map->handle,
+		LV2_LOG__Error);
+	handle->uris.log_trace = handle->map->map(handle->map->handle,
+		LV2_LOG__Trace);
 
 	// init comm
 	handle->comm.from_worker = varchunk_new(BUF_SIZE);
@@ -1604,8 +1649,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	const osc_data_t *ptr;
 	size_t size;
-	handle->comm.needs_flushing = 0;
 
+	handle->comm.needs_flushing = 0;
 	handle->stamp += nsamples;
 
 	// handle TUIO reset toggle
@@ -1656,8 +1701,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		osc_dispatch_method(ptr, size,
-			comm_methods, NULL, NULL, handle);
+		handle->rel = 0; // immediate injection
+		osc_dispatch_method(ptr, size, comm_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
 	}
@@ -1679,33 +1724,42 @@ run(LV2_Handle instance, uint32_t nsamples)
 	list_t *l;
 	for(l = handle->list; l; )
 	{
-		int64_t rel = l->frames - handle->last_frame;
-
-		if(rel < 0) // late event
-		{
-			//lprintf(handle, handle->uris.log_trace, "late event: %li", rel); FIXME
-			rel = 0;
-		}
-		else if(rel >= nsamples) // not scheduled for this period
-		{
-			break;
-		}
-
 		uint64_t time = be64toh(*(uint64_t *)(l->buf + 8));
+		//lprintf(handle, handle->uris.log_trace, "frames: %lu, %lu", time, l->frames);
 
-		lv2_atom_forge_frame_time(forge, rel);
+		if(l->frames < 0) // late event
+		{
+			lprintf(handle, handle->uris.log_trace, "late event: %li samples", l->frames);
+			l->frames = 0; // dispatch as early as possible
+		}
+		else if(l->frames >= nsamples) // not scheduled for this period
+		{
+			l->frames -= nsamples; // subtract period size
+			l = l->next;
+			continue;
+		}
+
+		handle->rel = l->frames;
+		
+		if(*handle->through_in != 0.f)
+		{
+			lv2_atom_forge_frame_time(forge, handle->rel);
+			//TODO check return
+			osc_forge_bundle_push(&handle->oforge, forge,
+				handle->data.frame[handle->data.frame_cnt++], time);
+			osc_dispatch_method(l->buf, l->size, through_methods, NULL, NULL, handle);
+			osc_forge_bundle_pop(&handle->oforge, forge,
+				handle->data.frame[--handle->data.frame_cnt]);
+		}
+
 		//TODO check return
-		osc_forge_bundle_push(&handle->oforge, forge,
-			handle->data.frame[handle->data.frame_cnt++], time);
 		osc_dispatch_method(l->buf, l->size, data_methods, NULL, NULL, handle);
-		osc_forge_bundle_pop(&handle->oforge, forge,
-			handle->data.frame[--handle->data.frame_cnt]);
 
 		list_t *l0 = l;
 		l = l->next;
+		handle->list = l;
 		tlsf_free(handle->tlsf, l0);
 	}
-	handle->list = l;
 	lv2_atom_forge_pop(forge, &frame);
 
 	if(handle->comm.restored)
