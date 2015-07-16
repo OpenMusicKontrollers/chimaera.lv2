@@ -34,6 +34,10 @@
 @prefix omk:	<http://open-music-kontrollers.ch/ventosus#> .
 @prefix proj:	<http://open-music-kontrollers.ch/lv2/> .
 @prefix chim:	<http://open-music-kontrollers.ch/lv2/chimaera#> .
+@prefix osc:	<http://open-music-kontrollers.ch/lv2/osc#> .
+
+osc:schedule
+	a lv2:Feature .
 
 # Maintainer
 omk:me
@@ -615,7 +619,7 @@ chim:osc_out
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:extensionData state:interface ;
-	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable, osc:schedule ;
 	lv2:requiredFeature urid:map ;
 
 	patch:writable chim:synth_name_1 ;
@@ -642,7 +646,7 @@ chim:osc_out
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object, patch:Message ;
+		atom:supports atom:Object, patch:Message, osc:Event ;
 		lv2:index 1 ;
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
@@ -775,7 +779,7 @@ chim:comm
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:extensionData work:interface, state:interface ;
-	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable, osc:schedule ;
 	lv2:requiredFeature urid:map, work:schedule ;
 
 	lv2:port [
@@ -784,6 +788,7 @@ chim:comm
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
 		atom:supports atom:Object ;
+		atom:supports osc:Event ;
 		lv2:index 0 ;
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
