@@ -40,6 +40,14 @@ set(LIBS ${LIBS} ${UV_LDFLAGS})
 
 option(CHIMAERA_UI_PLUGINS "Build Chimaera UI plugins" ON)
 
+include(CheckCSourceCompiles)
+CHECK_C_SOURCE_COMPILES("int main(int argc, char **argv)
+	{void *src; void *dst = __builtin_assume_aligned(src, 16); return 0;}"
+	HAS_BUILTIN_ASSUME_ALIGNED)
+if(${HAS_BUILTIN_ASSUME_ALIGNED})
+	add_definitions("-DHAS_BUILTIN_ASSUME_ALIGNED")
+endif()
+
 add_library(chimaera MODULE
 	cjson/cJSON.c
 	tlsf-3.0/tlsf.c
@@ -50,6 +58,7 @@ add_library(chimaera MODULE
 	simulator.c
 	visualizer.c
 	comm.c
+	driver.c
 	control_out.c
 	midi_out.c
 	osc_out.c)

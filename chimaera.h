@@ -34,6 +34,13 @@
 
 #define _ATOM_ALIGNED __attribute__((aligned(8)))
 
+#if defined(HAS_BUILTIN_ASSUME_ALIGNED)
+#	define ASSUME_ALIGNED(PTR) __builtin_assume_aligned((PTR), 8)
+#else
+#	define ASSUME_ALIGNED(PTR) (PTR)
+#endif
+
+
 // bundle uri
 #define CHIMAERA_URI							"http://open-music-kontrollers.ch/lv2/chimaera"
 
@@ -60,6 +67,7 @@
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
+#define CHIMAERA_DRIVER_URI				CHIMAERA_URI"#driver"
 
 extern const LV2_Descriptor filter;
 extern const LV2_Descriptor mapper;
@@ -69,6 +77,7 @@ extern const LV2_Descriptor osc_out;
 extern const LV2_Descriptor simulator;
 extern const LV2_Descriptor visualizer;
 extern const LV2_Descriptor comm;
+extern const LV2_Descriptor driver;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
@@ -228,7 +237,7 @@ static inline const int32_t *
 chimaera_dump_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
 	uint32_t *sensors)
 {
-	const chimaera_dump_t *dump = (const chimaera_dump_t *)atom;
+	const chimaera_dump_t *dump = ASSUME_ALIGNED(atom);
 
 	if(sensors)
 		*sensors = dump->vec.child_size / sizeof(int32_t);
@@ -240,9 +249,9 @@ static inline int
 chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 {
 	const LV2_Atom_Forge *forge = &cforge->forge;
-	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
+	const LV2_Atom_Object *obj = ASSUME_ALIGNED(atom);
 
-	if(lv2_atom_forge_is_object_type(forge, atom->type)
+	if(lv2_atom_forge_is_object_type(forge, obj->atom.type)
 			&& (obj->body.otype == cforge->uris.dump) )
 		return 1;
 	
@@ -331,9 +340,9 @@ static inline int
 chimaera_event_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 {
 	const LV2_Atom_Forge *forge = &cforge->forge;
-	const LV2_Atom_Object *obj = (LV2_Atom_Object *)atom;
+	const LV2_Atom_Object *obj = ASSUME_ALIGNED(atom);
 
-	if(lv2_atom_forge_is_object_type(forge, atom->type)
+	if(lv2_atom_forge_is_object_type(forge, obj->atom.type)
 			&& ( (obj->body.otype == cforge->uris.on)
 				|| (obj->body.otype == cforge->uris.off)
 				|| (obj->body.otype == cforge->uris.set)
@@ -349,7 +358,7 @@ static inline void
 chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
 	chimaera_event_t *ev)
 {
-	const chimaera_pack_t *pack = (const chimaera_pack_t *)atom;
+	const chimaera_pack_t *pack = ASSUME_ALIGNED(atom);
 
 	uint32_t otype = pack->cobj.obj.body.otype;
 

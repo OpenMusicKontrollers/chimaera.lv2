@@ -38,6 +38,8 @@ lv2_descriptor(uint32_t index)
 			return &visualizer;
 		case 7:
 			return &comm;
+		case 8:
+			return &driver;
 		default:
 			return NULL;
 	}

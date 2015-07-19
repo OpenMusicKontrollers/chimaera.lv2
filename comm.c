@@ -131,6 +131,7 @@ struct _handle_t {
 		int reset;
 	} tuio2;
 
+	const LV2_Atom_Sequence *osc_in;
 	LV2_Atom_Sequence *event_out;
 	const float *reset_in;
 	const float *through_in;
@@ -175,8 +176,8 @@ struct _handle_t {
 	} data;
 };
 
-const char flush_msg [] = "/chimaera/flush\0,\0\0\0";
-const char recv_msg [] = "/chimaera/recv\0\0,\0\0\0";
+static const char flush_msg [] = "/chimaera/flush\0,\0\0\0";
+static const char recv_msg [] = "/chimaera/recv\0\0,\0\0\0";
 
 static inline list_t *
 _list_insert(list_t *root, list_t *item)
@@ -1421,24 +1422,27 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 	switch(port)
 	{
 		case 0:
-			handle->event_out = (LV2_Atom_Sequence *)data;
+			handle->osc_in = (const LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->reset_in = (const float *)data;
+			handle->event_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 2:
-			handle->through_in = (const float *)data;
+			handle->reset_in = (const float *)data;
 			break;
 		case 3:
-			handle->comm_state = (float *)data;
+			handle->through_in = (const float *)data;
 			break;
 		case 4:
-			handle->data_state = (float *)data;
+			handle->comm_state = (float *)data;
 			break;
 		case 5:
-			handle->control = (const LV2_Atom_Sequence *)data;
+			handle->data_state = (float *)data;
 			break;
 		case 6:
+			handle->control = (const LV2_Atom_Sequence *)data;
+			break;
+		case 7:
 			handle->notify = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -1640,6 +1644,13 @@ _data_url_change(handle_t *handle, const char *url)
 }
 
 static void
+_message_cb(const char *path, const char *fmt, const LV2_Atom_Tuple *arguments,
+	void *data)
+{
+	//FIXME
+}
+
+static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
@@ -1706,6 +1717,14 @@ run(LV2_Handle instance, uint32_t nsamples)
 		varchunk_read_advance(handle->comm.from_worker);
 	}
 	lv2_atom_forge_pop(forge, &frame);
+
+	// read incoming osc
+	LV2_ATOM_SEQUENCE_FOREACH(handle->osc_in, ev)
+	{
+		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
+
+		osc_atom_event_unroll(&handle->oforge, obj, NULL, NULL, _message_cb, handle);
+	}
 
 	// read incoming data
 	capacity = handle->event_out->atom.size;
