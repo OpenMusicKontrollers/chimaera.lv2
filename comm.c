@@ -87,6 +87,8 @@ struct _handle_t {
 	uint8_t mem [POOL_SIZE];
 	tlsf_t tlsf;
 
+	LV2_Atom_Forge_Ref ref;
+
 	struct {
 		osc_stream_driver_t driver;
 		osc_stream_t *stream;
@@ -419,26 +421,28 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 	LV2_Atom_Forge_Frame frame [2];
 
 	const osc_data_t *ptr = buf;
+	LV2_Atom_Forge_Ref ref = handle->ref;
 
-	if(!frame_cnt)
-		lv2_atom_forge_frame_time(forge, 0);
-	osc_forge_message_push(&handle->oforge, forge, frame, path, fmt);
+	if(!frame_cnt && ref)
+		ref = lv2_atom_forge_frame_time(forge, 0);
+	if(ref)
+		ref = osc_forge_message_push(&handle->oforge, forge, frame, path, fmt);
 
-	for(const char *type = fmt; *type; type++)
+	for(const char *type = fmt; *type && ref; type++)
 		switch(*type)
 		{
 			case 'i':
 			{
 				int32_t i;
 				if((ptr = osc_get_int32(ptr, &i)))
-					osc_forge_int32(&handle->oforge, forge, i);
+					ref = osc_forge_int32(&handle->oforge, forge, i);
 				break;
 			}
 			case 'f':
 			{
 				float f;
 				if((ptr = osc_get_float(ptr, &f)))
-					osc_forge_float(&handle->oforge, forge, f);
+					ref = osc_forge_float(&handle->oforge, forge, f);
 				break;
 			}
 			case 's':
@@ -446,14 +450,14 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			{
 				const char *s;
 				if((ptr = osc_get_string(ptr, &s)))
-					osc_forge_string(&handle->oforge, forge, s);
+					ref = osc_forge_string(&handle->oforge, forge, s);
 				break;
 			}
 			case 'b':
 			{
 				osc_blob_t b;
 				if((ptr = osc_get_blob(ptr, &b)))
-					osc_forge_blob(&handle->oforge, forge, b.size, b.payload);
+					ref = osc_forge_blob(&handle->oforge, forge, b.size, b.payload);
 				break;
 			}
 
@@ -461,21 +465,21 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			{
 				int64_t h;
 				if((ptr = osc_get_int64(ptr, &h)))
-					osc_forge_int64(&handle->oforge, forge, h);
+					ref = osc_forge_int64(&handle->oforge, forge, h);
 				break;
 			}
 			case 'd':
 			{
 				double d;
 				if((ptr = osc_get_double(ptr, &d)))
-					osc_forge_double(&handle->oforge, forge, d);
+					ref = osc_forge_double(&handle->oforge, forge, d);
 				break;
 			}
 			case 't':
 			{
 				uint64_t t;
 				if((ptr = osc_get_timetag(ptr, &t)))
-					osc_forge_timestamp(&handle->oforge, forge, t);
+					ref = osc_forge_timestamp(&handle->oforge, forge, t);
 				break;
 			}
 
@@ -491,19 +495,22 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			{
 				char c;
 				if((ptr = osc_get_char(ptr, &c)))
-					osc_forge_char(&handle->oforge, forge, c);
+					ref = osc_forge_char(&handle->oforge, forge, c);
 				break;
 			}
 			case 'm':
 			{
 				const uint8_t *m;
 				if((ptr = osc_get_midi(ptr, &m)))
-					osc_forge_midi(&handle->oforge, forge, 3, m + 1);
+					ref = osc_forge_midi(&handle->oforge, forge, 3, m + 1);
 				break;
 			}
 		}
 
-	osc_forge_message_pop(&handle->oforge, forge, frame);
+	if(ref)
+		osc_forge_message_pop(&handle->oforge, forge, frame);
+
+	handle->ref = ref;
 }
 
 // rt
@@ -1151,19 +1158,28 @@ run(LV2_Handle instance, uint32_t nsamples)
 		}
 
 		lv2_atom_forge_frame_time(forge, l->frames);
-		//TODO check return
-		osc_forge_bundle_push(&handle->oforge, forge,
+		handle->ref = osc_forge_bundle_push(&handle->oforge, forge,
 			handle->data.frame[handle->data.frame_cnt++], time);
-		osc_dispatch_method(l->buf, l->size, data_methods, NULL, NULL, handle);
-		osc_forge_bundle_pop(&handle->oforge, forge,
-			handle->data.frame[--handle->data.frame_cnt]);
+		if(handle->ref)
+			osc_dispatch_method(l->buf, l->size, data_methods, NULL, NULL, handle);
+		if(handle->ref)
+			osc_forge_bundle_pop(&handle->oforge, forge,
+				handle->data.frame[--handle->data.frame_cnt]);
 
 		list_t *l0 = l;
 		l = l->next;
 		handle->list = l;
 		tlsf_free(handle->tlsf, l0);
 	}
-	lv2_atom_forge_pop(forge, &frame);
+	if(handle->ref)
+	{
+		lv2_atom_forge_pop(forge, &frame);
+	}
+	else // clear output buffer
+	{
+		lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
+		lv2_atom_forge_sequence_head(forge, &frame, 0);
+	}
 
 	if(handle->comm.restored)
 	{
