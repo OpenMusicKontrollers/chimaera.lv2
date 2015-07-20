@@ -36,37 +36,7 @@
 
 typedef enum _plugstate_t plugstate_t;
 typedef struct _list_t list_t;
-typedef struct _pos_t pos_t;
-typedef struct _dummy_ref_t dummy_ref_t;
-typedef struct _tuio2_ref_t tuio2_ref_t;
 typedef struct _handle_t handle_t;
-
-struct _pos_t {
-	uint64_t stamp;
-
-	float x;
-	float z;
-	float a;
-	struct {
-		float f1;
-		float f11;
-	} vx;
-	struct {
-		float f1;
-		float f11;
-	} vz;
-	float v;
-	float A;
-	float m;
-	float R;
-};
-
-struct _dummy_ref_t {
-	uint32_t gid;
-	uint32_t pid;
-
-	pos_t pos;
-};
 
 enum _plugstate_t {
 	STATE_IDLE					= 0,
@@ -74,13 +44,6 @@ enum _plugstate_t {
 	STATE_TIMEDOUT			= 2,
 	STATE_ERRORED				= 3,
 	STATE_CONNECTED			= 4
-};
-
-struct _tuio2_ref_t {
-	uint32_t gid;
-	uint32_t tuid;
-
-	pos_t pos;
 };
 
 struct _list_t {
@@ -107,34 +70,7 @@ struct _handle_t {
 	
 	LV2_Log_Log *log;
 
-	float rate;
-	float s;
-	float sm1;
-	uint64_t stamp;
-
-	struct {
-		chimaera_dict_t dict [CHIMAERA_DICT_SIZE];
-		dummy_ref_t ref [CHIMAERA_DICT_SIZE];
-	} dummy;
-
-	struct {
-		chimaera_dict_t dict [2][CHIMAERA_DICT_SIZE];
-		tuio2_ref_t ref [2][CHIMAERA_DICT_SIZE];
-		int pos;
-
-		uint32_t fid;
-		osc_time_t last;
-		uint16_t width;
-		uint16_t height;
-		int ignore;
-		int n;
-		int reset;
-	} tuio2;
-
-	const LV2_Atom_Sequence *osc_in;
-	LV2_Atom_Sequence *event_out;
-	const float *reset_in;
-	const float *through_in;
+	LV2_Atom_Sequence *osc_out;
 	float *comm_state;
 	float *data_state;
 	const LV2_Atom_Sequence *control;
@@ -150,7 +86,6 @@ struct _handle_t {
 	list_t *list;
 	uint8_t mem [POOL_SIZE];
 	tlsf_t tlsf;
-	int64_t rel;
 
 	struct {
 		osc_stream_driver_t driver;
@@ -486,7 +421,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 	const osc_data_t *ptr = buf;
 
 	if(!frame_cnt)
-		lv2_atom_forge_frame_time(forge, handle->rel);
+		lv2_atom_forge_frame_time(forge, 0);
 	osc_forge_message_push(&handle->oforge, forge, frame, path, fmt);
 
 	for(const char *type = fmt; *type; type++)
@@ -584,16 +519,6 @@ _comm_method(osc_time_t timestamp, const char *path, const char *fmt,
 }
 
 // rt
-static inline void
-_chim_event(handle_t *handle, int64_t frames, chimaera_event_t *cev)
-{
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-
-	lv2_atom_forge_frame_time(forge, frames);
-	chimaera_event_forge(&handle->cforge, cev);
-}
-
-// rt
 static int
 _data_resolve(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
@@ -655,471 +580,12 @@ _data_disconnect(osc_time_t timestamp, const char *path, const char *fmt,
 
 // rt
 static int
-_data_through(osc_time_t timestamp, const char *path, const char *fmt,
+_data_method(osc_time_t timestamp, const char *path, const char *fmt,
 	const osc_data_t *buf, size_t size, void *data)
 {
 	handle_t *handle = data;
 
 	_osc_atom_serialize(handle, path, fmt, buf, size, handle->data.frame_cnt);
-
-	return 1;
-}
-
-static inline void
-_pos_init(pos_t *dst, uint64_t stamp)
-{
-	dst->stamp = stamp;
-	dst->x = 0.f;
-	dst->z = 0.f;
-	dst->a = 0.f;
-	dst->vx.f1 = 0.f;
-	dst->vx.f11 = 0.f;
-	dst->vz.f1 = 0.f;
-	dst->vz.f11 = 0.f;
-	dst->v = 0.f;
-	dst->A = 0.f;
-	dst->m = 0.f;
-	dst->R = 0.f;
-	
-	//memset(dst, 0x0, sizeof(pos_t));
-}
-
-static inline void
-_pos_clone(pos_t *dst, pos_t *src)
-{
-	dst->stamp = src->stamp;
-	dst->x = src->x;
-	dst->z = src->z;
-	dst->a = src->a;
-	dst->vx.f1 = src->vx.f1;
-	dst->vx.f11 = src->vx.f11;
-	dst->vz.f1 = src->vz.f1;
-	dst->vz.f11 = src->vz.f11;
-	dst->v = src->v;
-	dst->A = src->A;
-	dst->m = src->m;
-	dst->R = src->R;
-	
-	//memcpy(dst, src, sizeof(pos_t));
-}
-
-static inline void
-_pos_deriv(handle_t *handle, pos_t *neu, pos_t *old)
-{
-	if(neu->stamp <= old->stamp)
-	{
-		neu->stamp = old->stamp;
-		neu->vx.f1 = old->vx.f1;
-		neu->vx.f11 = old->vx.f11;
-		neu->vz.f1 = old->vz.f1;
-		neu->vz.f11 = old->vz.f11;
-		neu->v = old->v;
-		neu->A = old->A;
-		neu->m = old->m;
-		neu->R = old->R;
-	}
-	else
-	{
-		float rate = handle->rate / (neu->stamp - old->stamp);
-
-		float dx = neu->x - old->x;
-		neu->vx.f1 = dx * rate;
-
-		float dz = neu->z - old->z;
-		neu->vz.f1 = dz * rate;
-
-		// first-order IIR filter
-		neu->vx.f11 = handle->s*(neu->vx.f1 + old->vx.f1) + old->vx.f11*handle->sm1;
-		neu->vz.f11 = handle->s*(neu->vz.f1 + old->vz.f1) + old->vz.f11*handle->sm1;
-
-		neu->v = sqrtf(neu->vx.f11 * neu->vx.f11 + neu->vz.f11 * neu->vz.f11);
-
-		float dv =  neu->v - old->v;
-		neu->A = 0.f;
-		neu->m = dv * rate;
-		neu->R = 0.f;
-	}
-}
-
-// rt
-static int
-_tuio2_frm(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	const osc_data_t *ptr = buf;
-	uint32_t fid;
-	osc_time_t last;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&fid);
-	ptr = osc_get_timetag(ptr, &last);
-
-	if( (fid > handle->tuio2.fid) && (last >= handle->tuio2.last) ) //TODO handle immediate
-	{
-		uint32_t dim;
-		//const char *source;
-
-		handle->tuio2.fid = fid;
-		handle->tuio2.last = last;
-
-		ptr = osc_get_int32(ptr, (int32_t *)&dim);
-		handle->tuio2.width = dim >> 16;
-		handle->tuio2.height = dim & 0xffff;
-		
-		//ptr = osc_get_string(ptr, &source);
-
-		handle->tuio2.pos ^= 1; // toggle pos
-		chimaera_dict_clear(handle->tuio2.dict[handle->tuio2.pos]);
-
-		handle->tuio2.ignore = 0;
-	}
-	else
-	{
-		lprintf(handle, handle->uris.log_trace, "ignore event: %u", fid);
-		handle->tuio2.ignore = 1;
-	}
-
-	return 1;
-}
-
-// rt
-static int
-_tuio2_tok(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-	pos_t pos;
-	_pos_init(&pos, handle->stamp);
-
-	int has_derivatives = strlen(fmt) == 11;
-
-	const osc_data_t *ptr = buf;
-	tuio2_ref_t *ref;
-
-	if(handle->tuio2.ignore)
-		return 1;
-
-	uint32_t sid;
-	ptr = osc_get_int32(ptr, (int32_t *)&sid);
-	
-	ref = chimaera_dict_add(handle->tuio2.dict[handle->tuio2.pos], sid); // get new blob ref
-	if(!ref)
-		return 1;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&ref->tuid);
-	ptr = osc_get_int32(ptr, (int32_t *)&ref->gid);
-	ptr = osc_get_float(ptr, &pos.x);
-	ptr = osc_get_float(ptr, &pos.z);
-	ptr = osc_get_float(ptr, &pos.a);
-
-	if(has_derivatives)
-	{
-		ptr = osc_get_float(ptr, &pos.vx.f11);
-		ptr = osc_get_float(ptr, &pos.vz.f11);
-		ptr = osc_get_float(ptr, &pos.A);
-		ptr = osc_get_float(ptr, &pos.m);
-		ptr = osc_get_float(ptr, &pos.R);
-	}
-	else // !has_derivatives
-	{
-		_pos_deriv(handle, &pos, &ref->pos);
-	}
-
-	_pos_clone(&ref->pos, &pos);
-
-	return 1;
-}
-
-// rt
-static int
-_tuio2_alv(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	const osc_data_t *ptr = buf;
-	chimaera_event_t cev;
-	int n;
-	uint32_t sid;
-	tuio2_ref_t *dst;
-	tuio2_ref_t *src;
-
-	if(handle->tuio2.ignore)
-		return 1;
-
-	n = strlen(fmt);
-
-	for(int i=0; i<n; i++)
-	{
-		ptr = osc_get_int32(ptr, (int32_t *)&sid);
-
-		// already registered in this step?
-		dst = chimaera_dict_ref(handle->tuio2.dict[handle->tuio2.pos], sid);
-		if(!dst)
-		{
-			// register in this step
-			dst = chimaera_dict_add(handle->tuio2.dict[handle->tuio2.pos], sid);
-			// clone from previous step
-			src = chimaera_dict_ref(handle->tuio2.dict[!handle->tuio2.pos], sid);
-			if(dst && src)
-				memcpy(dst, src, sizeof(tuio2_ref_t));
-		}
-	}
-
-	// iterate over last step's blobs
-	CHIMAERA_DICT_FOREACH(handle->tuio2.dict[!handle->tuio2.pos], sid, src)
-	{
-		// is it registered in this step?
-		if(!chimaera_dict_ref(handle->tuio2.dict[handle->tuio2.pos], sid))
-		{
-			// is disappeared blob
-			cev.state = CHIMAERA_STATE_OFF;
-			cev.sid = sid;
-			cev.gid = src->gid;
-			cev.pid = src->tuid & 0xffff;
-			cev.x = src->pos.x;
-			cev.z = src->pos.z;
-			cev.X = src->pos.vx.f11;
-			cev.Z = src->pos.vz.f11;
-
-			_chim_event(handle, handle->rel, &cev);
-		}
-	}
-
-	// iterate over this step's blobs
-	CHIMAERA_DICT_FOREACH(handle->tuio2.dict[handle->tuio2.pos], sid, dst)
-	{
-		cev.sid = sid;
-		cev.gid = dst->gid;
-		cev.pid = dst->tuid & 0xffff;
-		cev.x = dst->pos.x;
-		cev.z = dst->pos.z;
-		cev.X = dst->pos.vx.f11;
-		cev.Z = dst->pos.vz.f11;
-
-		// was it registered in previous step?
-		if(!chimaera_dict_ref(handle->tuio2.dict[!handle->tuio2.pos], sid))
-			cev.state = CHIMAERA_STATE_ON;
-		else
-			cev.state = CHIMAERA_STATE_SET;
-
-		_chim_event(handle, handle->rel, &cev);
-	}
-
-	if(!n && !handle->tuio2.n)
-	{
-		// is idling
-		cev.state = CHIMAERA_STATE_IDLE;
-		cev.sid = 0;
-		cev.gid = 0;
-		cev.pid = 0;
-		cev.x = 0.f;
-		cev.z = 0.f;
-		cev.X = 0.f;
-		cev.Z = 0.f;
-
-		_chim_event(handle, handle->rel, &cev);
-	}
-
-	handle->tuio2.n = n;
-
-	return 1;
-}
-
-// rt
-static int
-_dummy_on(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-	pos_t pos;
-	_pos_init(&pos, handle->stamp);
-
-	int has_derivatives = strlen(fmt) == 7;
-
-	const osc_data_t *ptr = buf;
-	chimaera_event_t cev;
-	dummy_ref_t *ref;
-	
-	cev.state = CHIMAERA_STATE_ON;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
-	ref = chimaera_dict_add(handle->dummy.dict, cev.sid);
-	if(!ref)
-		return 1;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&cev.gid);
-	ref->gid = cev.gid;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&cev.pid);
-	ref->pid = cev.pid;
-
-	ptr = osc_get_float(ptr, &pos.x);
-	ptr = osc_get_float(ptr, &pos.z);
-
-	if(has_derivatives)
-	{
-		ptr = osc_get_float(ptr, &pos.vx.f11);
-		ptr = osc_get_float(ptr, &pos.vz.f11);
-	}
-
-	_pos_clone(&ref->pos, &pos);
-	cev.x = ref->pos.x;
-	cev.z = ref->pos.z;
-	cev.X = ref->pos.vx.f11;
-	cev.Z = ref->pos.vz.f11;
-
-	_chim_event(handle, handle->rel, &cev);
-
-	return 1;
-}
-
-// rt
-static int
-_dummy_off(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	//int is_redundant = strlen(fmt) == 3;
-
-	const osc_data_t *ptr = buf;
-	chimaera_event_t cev;
-	dummy_ref_t *ref;
-	
-	cev.state = CHIMAERA_STATE_OFF;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
-	ref = chimaera_dict_del(handle->dummy.dict, cev.sid);
-	if(!ref)
-		return 1;
-
-	cev.gid = ref->gid;
-	cev.pid = ref->pid;
-	cev.x = ref->pos.x;
-	cev.z = ref->pos.z;
-	cev.X = ref->pos.vx.f11;
-	cev.Z = ref->pos.vz.f11;
-
-	_chim_event(handle, handle->rel, &cev);
-
-	return 1;
-}
-
-// rt
-static int
-_dummy_set(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-	pos_t pos;
-	_pos_init(&pos, handle->stamp);
-
-	int is_redundant = fmt[2] == 'i';
-	int has_derivatives = is_redundant
-		? (strlen(fmt) == 7)
-		: (strlen(fmt) == 5);
-
-	const osc_data_t *ptr = buf;
-	chimaera_event_t cev;
-	dummy_ref_t *ref;
-	
-	cev.state = CHIMAERA_STATE_SET;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&cev.sid);
-	ref = chimaera_dict_ref(handle->dummy.dict, cev.sid);
-	if(!ref)
-		return 1;
-
-	if(is_redundant)
-	{
-		int32_t _gid, _pid;
-		ptr = osc_get_int32(ptr, &_gid);
-		ptr = osc_get_int32(ptr, &_pid);
-	}
-
-	cev.gid = ref->gid;
-	cev.pid = ref->pid;
-
-	ptr = osc_get_float(ptr, &pos.x);
-	ptr = osc_get_float(ptr, &pos.z);
-
-	if(has_derivatives)
-	{
-		ptr = osc_get_float(ptr, &pos.vx.f11);
-		ptr = osc_get_float(ptr, &pos.vz.f11);
-	}
-	else
-	{
-		_pos_deriv(handle, &pos, &ref->pos);
-	}
-
-	_pos_clone(&ref->pos, &pos);
-	cev.x = ref->pos.x;
-	cev.z = ref->pos.z;
-	cev.X = ref->pos.vx.f11;
-	cev.Z = ref->pos.vz.f11;
-
-	_chim_event(handle, handle->rel, &cev);
-
-	return 1;
-}
-
-// rt
-static int
-_dummy_idle(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	chimaera_event_t cev;
-	
-	cev.state = CHIMAERA_STATE_IDLE;
-	
-	cev.sid = 0;
-	cev.gid = 0;
-	cev.pid = 0;
-	cev.x = 0.f;
-	cev.z = 0.f;
-	cev.X = 0.f;
-	cev.Z = 0.f;
-
-	_chim_event(handle, handle->rel, &cev);
-
-	chimaera_dict_clear(handle->dummy.dict);
-
-	return 1;
-}
-
-// rt
-static int
-_dump(osc_time_t timestamp, const char *path, const char *fmt,
-	const osc_data_t *buf, size_t size, void *data)
-{
-	handle_t *handle = data;
-
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	const osc_data_t *ptr = buf;
-	uint32_t sensors;
-	int32_t values[160];
-
-	uint32_t fid;
-	osc_blob_t b;
-
-	ptr = osc_get_int32(ptr, (int32_t *)&fid);
-	ptr = osc_get_blob(ptr, &b);
-	const int16_t *payload = b.payload;
-
-	sensors = b.size / sizeof(int16_t);
-	for(int i=0; i<sensors; i++)
-	{
-		int16_t val = be16toh(payload[i]);
-		values[i] = val;
-	}
-
-	lv2_atom_forge_frame_time(forge, handle->rel);
-	chimaera_dump_forge(&handle->cforge, values, sensors);
 
 	return 1;
 }
@@ -1143,29 +609,8 @@ static const osc_method_t data_methods [] = {
 	{"/stream/connect", "", _data_connect},
 	{"/stream/disconnect", "", _data_disconnect},
 
-	{"/tuio2/frm", "itis", _tuio2_frm},
-	{"/tuio2/tok", "iiifff", _tuio2_tok},
-	{"/tuio2/tok", "iiiffffffff", _tuio2_tok},
-	{"/tuio2/alv", NULL, _tuio2_alv},
+	{NULL, NULL, _data_method},
 
-	{"/on", "iiiff", _dummy_on},
-	{"/on", "iiiffff", _dummy_on},
-	{"/off", "i", _dummy_off},
-	{"/off", "iii", _dummy_off},
-	{"/set", "iff", _dummy_set},
-	{"/set", "iffff", _dummy_set},
-	{"/set", "iiiff", _dummy_set},
-	{"/set", "iiiffff", _dummy_set},
-	{"/idle", "", _dummy_idle},
-	
-	{"/dump", "ib", _dump},
-
-	{NULL, NULL, NULL}
-};
-
-static const osc_method_t through_methods [] = {
-	{NULL, NULL, _data_through},
-	
 	{NULL, NULL, NULL}
 };
 
@@ -1328,11 +773,6 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	if(!handle)
 		return NULL;
 
-	handle->rate = rate;
-	handle->s = 1.f / 32.f; //FIXME make stiffness configurable
-	handle->sm1 = 1.f - handle->s;
-	handle->s *= 0.5;
-
 	for(i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
@@ -1362,9 +802,6 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	
 	chimaera_forge_init(&handle->cforge, handle->map);
 	osc_forge_init(&handle->oforge, handle->map);
-	CHIMAERA_DICT_INIT(handle->dummy.dict, handle->dummy.ref);
-	CHIMAERA_DICT_INIT(handle->tuio2.dict[0], handle->tuio2.ref[0]);
-	CHIMAERA_DICT_INIT(handle->tuio2.dict[1], handle->tuio2.ref[1]);
 
 	handle->uris.chimaera_comm_url = handle->map->map(handle->map->handle,
 		CHIMAERA_COMM_URL_URI);
@@ -1422,27 +859,18 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 	switch(port)
 	{
 		case 0:
-			handle->osc_in = (const LV2_Atom_Sequence *)data;
+			handle->osc_out = (LV2_Atom_Sequence *)data;
 			break;
 		case 1:
-			handle->event_out = (LV2_Atom_Sequence *)data;
-			break;
-		case 2:
-			handle->reset_in = (const float *)data;
-			break;
-		case 3:
-			handle->through_in = (const float *)data;
-			break;
-		case 4:
 			handle->comm_state = (float *)data;
 			break;
-		case 5:
+		case 2:
 			handle->data_state = (float *)data;
 			break;
-		case 6:
+		case 3:
 			handle->control = (const LV2_Atom_Sequence *)data;
 			break;
-		case 7:
+		case 4:
 			handle->notify = (LV2_Atom_Sequence *)data;
 			break;
 		default:
@@ -1459,8 +887,6 @@ activate(LV2_Handle instance)
 
 	handle->comm.restored = 1;
 	handle->data.restored = 1;
-
-	handle->stamp = 0;
 }
 
 // non-rt
@@ -1644,41 +1070,17 @@ _data_url_change(handle_t *handle, const char *url)
 }
 
 static void
-_message_cb(const char *path, const char *fmt, const LV2_Atom_Tuple *arguments,
-	void *data)
-{
-	//FIXME
-}
-
-static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
+
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	uint32_t capacity;
 	LV2_Atom_Forge_Frame frame;
+	uint32_t capacity;
+	handle->comm.needs_flushing = 0;
+
 	const osc_data_t *ptr;
 	size_t size;
-
-	handle->comm.needs_flushing = 0;
-	handle->stamp += nsamples;
-
-	// handle TUIO reset toggle
-	int reset = *handle->reset_in > 0.f ? 1 : 0;
-	if(reset && !handle->tuio2.reset)
-	{
-		chimaera_dict_clear(handle->tuio2.dict[0]);
-		chimaera_dict_clear(handle->tuio2.dict[1]);
-		handle->tuio2.pos = 0;
-
-		handle->tuio2.fid = 0;
-		handle->tuio2.last = 0;
-		handle->tuio2.width = 0;
-		handle->tuio2.height = 0;
-		handle->tuio2.ignore = 0;
-		handle->tuio2.n = 0;
-	}
-	handle->tuio2.reset = reset;
 
 	// write outgoing comm
 	LV2_ATOM_SEQUENCE_FOREACH(handle->control, ev)
@@ -1711,24 +1113,15 @@ run(LV2_Handle instance, uint32_t nsamples)
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->comm.from_worker, &size)))
 	{
-		handle->rel = 0; // immediate injection
 		osc_dispatch_method(ptr, size, comm_methods, NULL, NULL, handle);
 
 		varchunk_read_advance(handle->comm.from_worker);
 	}
 	lv2_atom_forge_pop(forge, &frame);
 
-	// read incoming osc
-	LV2_ATOM_SEQUENCE_FOREACH(handle->osc_in, ev)
-	{
-		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-
-		osc_atom_event_unroll(&handle->oforge, obj, NULL, NULL, _message_cb, handle);
-	}
-
 	// read incoming data
-	capacity = handle->event_out->atom.size;
-	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
+	capacity = handle->osc_out->atom.size;
+	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
 	lv2_atom_forge_sequence_head(forge, &frame, 0);
 	while((ptr = varchunk_read_request(handle->data.from_worker, &size)))
 	{
@@ -1757,21 +1150,13 @@ run(LV2_Handle instance, uint32_t nsamples)
 			continue;
 		}
 
-		handle->rel = l->frames;
-		
-		if(*handle->through_in != 0.f)
-		{
-			lv2_atom_forge_frame_time(forge, handle->rel);
-			//TODO check return
-			osc_forge_bundle_push(&handle->oforge, forge,
-				handle->data.frame[handle->data.frame_cnt++], time);
-			osc_dispatch_method(l->buf, l->size, through_methods, NULL, NULL, handle);
-			osc_forge_bundle_pop(&handle->oforge, forge,
-				handle->data.frame[--handle->data.frame_cnt]);
-		}
-
+		lv2_atom_forge_frame_time(forge, l->frames);
 		//TODO check return
+		osc_forge_bundle_push(&handle->oforge, forge,
+			handle->data.frame[handle->data.frame_cnt++], time);
 		osc_dispatch_method(l->buf, l->size, data_methods, NULL, NULL, handle);
+		osc_forge_bundle_pop(&handle->oforge, forge,
+			handle->data.frame[--handle->data.frame_cnt]);
 
 		list_t *l0 = l;
 		l = l->next;

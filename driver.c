@@ -18,8 +18,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <osc.h>
-
 #include <chimaera.h>
 #include <lv2_osc.h>
 
@@ -85,7 +83,7 @@ struct _handle_t {
 		int pos;
 
 		uint32_t fid;
-		osc_time_t last;
+		uint64_t last;
 		uint16_t width;
 		uint16_t height;
 		int ignore;
@@ -190,25 +188,29 @@ _tuio2_frm(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);	
-	uint32_t fid = ((const LV2_Atom_Int *)atom)->body;
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
+	uint32_t fid;
+	uint64_t last;
 
-	atom = lv2_atom_tuple_next(atom);
-	osc_time_t last = ((const LV2_Atom_Long *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&fid);
+	ptr = osc_deforge_timestamp(oforge, forge, ptr, &last);
 
 	if( (fid > handle->tuio2.fid) && (last >= handle->tuio2.last) ) //TODO handle immediate
 	{
+		uint32_t dim;
+		//const char *source;
+
 		handle->tuio2.fid = fid;
 		handle->tuio2.last = last;
 
-		atom = lv2_atom_tuple_next(atom);
-		uint32_t dim = ((const LV2_Atom_Int *)atom)->body;
+		ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&dim);
 		handle->tuio2.width = dim >> 16;
 		handle->tuio2.height = dim & 0xffff;
 		
-		//atom = lv2_atom_tuple_next(atom);
-		//const char *source = LV2_ATOM_BODY_CONST(atom);
+		//ptr = osc_deforge_string(oforge, forge, ptr, &source);
 
 		handle->tuio2.pos ^= 1; // toggle pos
 		chimaera_dict_clear(handle->tuio2.dict[handle->tuio2.pos]);
@@ -217,7 +219,7 @@ _tuio2_frm(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	}
 	else
 	{
-		//lprintf(handle, handle->uris.log_trace, "ignore event: %u", fid); FIXME
+		//lprintf(handle, handle->uris.log_trace, "ignore event: %u", fid);
 		handle->tuio2.ignore = 1;
 	}
 
@@ -230,46 +232,40 @@ _tuio2_tok(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+
 	pos_t pos;
 	_pos_init(&pos, handle->stamp);
 
 	int has_derivatives = strlen(fmt) == 11;
 
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
 	tuio2_ref_t *ref;
 
 	if(handle->tuio2.ignore)
 		return 1;
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-	uint32_t sid = ((const LV2_Atom_Int *)atom)->body;
+	uint32_t sid;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&sid);
 	
 	ref = chimaera_dict_add(handle->tuio2.dict[handle->tuio2.pos], sid); // get new blob ref
 	if(!ref)
 		return 1;
 
-	atom = lv2_atom_tuple_next(atom);
-		ref->tuid = ((const LV2_Atom_Int *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		ref->gid = ((const LV2_Atom_Int *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		pos.x = ((const LV2_Atom_Float *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		pos.z = ((const LV2_Atom_Float *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		pos.a = ((const LV2_Atom_Float *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&ref->tuid);
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&ref->gid);
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.x);
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.z);
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.a);
 
 	if(has_derivatives)
 	{
-		atom = lv2_atom_tuple_next(atom);
-			pos.vx.f11 = ((const LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.vz.f11 = ((const LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.A = ((const LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.m = ((const LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.R = ((const LV2_Atom_Float *)atom)->body;
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vx.f11);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vz.f11);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.A);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.m);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.R);
 	}
 	else // !has_derivatives
 	{
@@ -287,7 +283,10 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
 	chimaera_event_t cev;
 	int n;
 	uint32_t sid;
@@ -299,11 +298,9 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 
 	n = strlen(fmt);
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-
-	for(int i=0; i<n; i++, atom = lv2_atom_tuple_next(atom))
+	for(int i=0; i<n; i++)
 	{
-		sid = ((const LV2_Atom_Int *)atom)->body;
+		ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&sid);
 
 		// already registered in this step?
 		dst = chimaera_dict_ref(handle->tuio2.dict[handle->tuio2.pos], sid);
@@ -384,41 +381,38 @@ _dummy_on(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+
 	pos_t pos;
 	_pos_init(&pos, handle->stamp);
 
 	int has_derivatives = strlen(fmt) == 7;
 
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);;
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
 	cev.state = CHIMAERA_STATE_ON;
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-		cev.sid = ((LV2_Atom_Int *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&cev.sid);
 	ref = chimaera_dict_add(handle->dummy.dict, cev.sid);
 	if(!ref)
 		return 1;
 
-	atom = lv2_atom_tuple_next(atom);
-		cev.gid = ((LV2_Atom_Int *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&cev.gid);
 	ref->gid = cev.gid;
 
-	atom = lv2_atom_tuple_next(atom);
-		cev.pid = ((LV2_Atom_Int *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&cev.pid);
 	ref->pid = cev.pid;
 
-	atom = lv2_atom_tuple_next(atom);
-		pos.x = ((LV2_Atom_Float *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		pos.z = ((LV2_Atom_Float *)atom)->body;
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.x);
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.z);
 
 	if(has_derivatives)
 	{
-		atom = lv2_atom_tuple_next(atom);
-			pos.vx.f11 = ((LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.vz.f11 = ((LV2_Atom_Float *)atom)->body;
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vx.f11);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vz.f11);
 	}
 
 	_pos_clone(&ref->pos, &pos);
@@ -438,16 +432,18 @@ _dummy_off(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 
 	//int is_redundant = strlen(fmt) == 3;
 
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
 	cev.state = CHIMAERA_STATE_OFF;
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-		cev.sid = ((const LV2_Atom_Int *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&cev.sid);
 	ref = chimaera_dict_del(handle->dummy.dict, cev.sid);
 	if(!ref)
 		return 1;
@@ -470,6 +466,9 @@ _dummy_set(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+
 	pos_t pos;
 	_pos_init(&pos, handle->stamp);
 
@@ -478,13 +477,13 @@ _dummy_set(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		? (strlen(fmt) == 7)
 		: (strlen(fmt) == 5);
 
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
 	chimaera_event_t cev;
 	dummy_ref_t *ref;
 	
 	cev.state = CHIMAERA_STATE_SET;
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-		cev.sid = ((const LV2_Atom_Int *)atom)->body;
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&cev.sid);
 	ref = chimaera_dict_ref(handle->dummy.dict, cev.sid);
 	if(!ref)
 		return 1;
@@ -492,26 +491,20 @@ _dummy_set(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	if(is_redundant)
 	{
 		int32_t _gid, _pid;
-		atom = lv2_atom_tuple_next(atom);
-			_gid = ((const LV2_Atom_Int *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			_pid = ((const LV2_Atom_Int *)atom)->body;
+		ptr = osc_deforge_int32(oforge, forge, ptr, &_gid);
+		ptr = osc_deforge_int32(oforge, forge, ptr, &_pid);
 	}
 
 	cev.gid = ref->gid;
 	cev.pid = ref->pid;
 
-	atom = lv2_atom_tuple_next(atom);
-		pos.x = ((const LV2_Atom_Float *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-		pos.z = ((const LV2_Atom_Float *)atom)->body;
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.x);
+	ptr = osc_deforge_float(oforge, forge, ptr, &pos.z);
 
 	if(has_derivatives)
 	{
-		atom = lv2_atom_tuple_next(atom);
-			pos.vx.f11 = ((const LV2_Atom_Float *)atom)->body;
-		atom = lv2_atom_tuple_next(atom);
-			pos.vz.f11 = ((const LV2_Atom_Float *)atom)->body;
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vx.f11);
+		ptr = osc_deforge_float(oforge, forge, ptr, &pos.vz.f11);
 	}
 	else
 	{
@@ -561,19 +554,21 @@ _dump(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	void *data)
 {
 	handle_t *handle = data;
+	osc_forge_t *oforge = &handle->oforge;
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
 
-	//LV2_Atom_Forge *forge = &handle->cforge.forge;
-	//uint32_t sensors;
-	//int32_t values[160];
+	const LV2_Atom *ptr = lv2_atom_tuple_begin(args);
+	uint32_t sensors;
+	int32_t values[160];
 
-	const LV2_Atom *atom = lv2_atom_tuple_begin(args);
-		//uint32_t fid = ((const LV2_Atom_Int *)atom)->body;
-	atom = lv2_atom_tuple_next(atom);
-	
-	/* FIXME
-	const int16_t *payload = LV2_ATOM_BODY_CONST(atom);
+	uint32_t fid;
+	uint32_t size;
+	const uint16_t *payload;
 
-	sensors = b.size / sizeof(int16_t);
+	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&fid);
+	ptr = osc_deforge_blob(oforge, forge, ptr, &size, (const uint8_t **)&payload);
+
+	sensors = size / sizeof(int16_t);
 	for(int i=0; i<sensors; i++)
 	{
 		int16_t val = be16toh(payload[i]);
@@ -582,7 +577,6 @@ _dump(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 
 	lv2_atom_forge_frame_time(forge, handle->rel);
 	chimaera_dump_forge(&handle->cforge, values, sensors);
-	*/
 
 	return 1;
 }
@@ -643,6 +637,14 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 	}
 }
 
+static void
+activate(LV2_Handle instance)
+{
+	handle_t *handle = (handle_t *)instance;
+
+	handle->stamp = 0;
+}
+
 typedef int (*osc_method_func_t)(const char *path, const char *fmt,
 	const LV2_Atom_Tuple *arguments, void *data);
 typedef struct _method_t method_t;
@@ -684,11 +686,8 @@ _message_cb(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		{
 			if(!meth->fmt || !strcmp(meth->fmt, fmt))
 			{
-				if(meth->cb)
-				{
-					if(meth->cb(path, fmt, args, data))
-						break;
-				}
+				if(meth->cb(path, fmt, args, data))
+					break; // event handled, break
 			}
 		}
 	}
@@ -698,9 +697,8 @@ static void
 run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
-	LV2_Atom_Forge *forge = &handle->cforge.forge;
-	//uint32_t capacity;
-	LV2_Atom_Forge_Frame frame;
+	
+	handle->stamp += nsamples;
 
 	// handle TUIO reset toggle
 	int reset = *handle->reset_in > 0.f ? 1 : 0;
@@ -718,8 +716,14 @@ run(LV2_Handle instance, uint32_t nsamples)
 		handle->tuio2.n = 0;
 	}
 	handle->tuio2.reset = reset;
+	
+	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	uint32_t capacity = handle->event_out->atom.size;
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
+	lv2_atom_forge_sequence_head(forge, &frame, 0);
 
-	// read incoming osc
+	// read incoming OSC
 	LV2_ATOM_SEQUENCE_FOREACH(handle->osc_in, ev)
 	{
 		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
@@ -742,7 +746,7 @@ const LV2_Descriptor driver = {
 	.URI						= CHIMAERA_DRIVER_URI,
 	.instantiate		= instantiate,
 	.connect_port		= connect_port,
-	.activate				= NULL,
+	.activate				= activate,
 	.run						= run,
 	.deactivate			= NULL,
 	.cleanup				= cleanup,
