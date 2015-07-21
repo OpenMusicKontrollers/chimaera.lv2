@@ -127,8 +127,9 @@ run(LV2_Handle instance, uint32_t nsamples)
 	const uint32_t capacity = handle->notify->atom.size;
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	LV2_Atom_Forge_Frame frame;
+	LV2_Atom_Forge_Ref ref;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->notify, capacity);
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 
 	// read events
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
@@ -146,23 +147,33 @@ run(LV2_Handle instance, uint32_t nsamples)
 				continue;
 			}
 
-			lv2_atom_forge_frame_time(forge, ev->time.frames);
-			lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
-			lv2_atom_forge_pad(forge, atom->size);
+			if(ref)
+				ref = lv2_atom_forge_frame_time(forge, ev->time.frames);
+			if(ref)
+				ref = lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
+			if(ref)
+				lv2_atom_forge_pad(forge, atom->size);
 		}
 		else if(chimaera_dump_check_type(&handle->cforge, atom))
 		{
 			if(handle->dump_waiting)
 			{
-				lv2_atom_forge_frame_time(forge, ev->time.frames);
-				lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
-				lv2_atom_forge_pad(forge, atom->size);
+				if(ref)
+					ref = lv2_atom_forge_frame_time(forge, ev->time.frames);
+				if(ref)
+					ref = lv2_atom_forge_raw(forge, atom, sizeof(LV2_Atom) + atom->size);
+				if(ref)
+					lv2_atom_forge_pad(forge, atom->size);
 
 				handle->dump_waiting = 0;
 			}
 		}
 	}
-	lv2_atom_forge_pop(forge, &frame);
+
+	if(ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->notify);
 
 	// increase sample counter
 	handle->cnt += nsamples;

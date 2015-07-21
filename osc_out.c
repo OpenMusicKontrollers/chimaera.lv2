@@ -230,7 +230,7 @@ activate(LV2_Handle instance)
 	//nothing
 }
 
-static void
+static LV2_Atom_Forge_Ref
 _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
@@ -242,44 +242,60 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
 	const int32_t arg_num = 4;
 
+	LV2_Atom_Forge_Ref ref;
+
 	if(handle->i_allocate)
 	{
-		lv2_atom_forge_frame_time(forge, frames);
+		ref = lv2_atom_forge_frame_time(forge, frames);
 		if(handle->i_gate)
 		{
-			osc_forge_message_vararg(&handle->oforge, forge,
-				"/s_new", "siiiiisisi",
-				handle->synth_name[cev->gid], id, 0, gid,
-				arg_offset + 4, cev->pid,
-				"gate", 1,
-				"out", out);
+			if(ref)
+			{
+				ref = osc_forge_message_vararg(&handle->oforge, forge,
+					"/s_new", "siiiiisisi",
+					handle->synth_name[cev->gid], id, 0, gid,
+					arg_offset + 4, cev->pid,
+					"gate", 1,
+					"out", out);
+			}
 		}
 		else // !handle->i_gate
 		{
-			osc_forge_message_vararg(&handle->oforge, forge,
-				"/s_new", "siiiiisi",
-				handle->synth_name[cev->gid], id, 0, gid,
-				arg_offset + 4, cev->pid,
-				"out", out);
+			if(ref)
+			{
+				ref = osc_forge_message_vararg(&handle->oforge, forge,
+					"/s_new", "siiiiisi",
+					handle->synth_name[cev->gid], id, 0, gid,
+					arg_offset + 4, cev->pid,
+					"out", out);
+			}
 		}
 	}
 	else if(handle->i_gate)
 	{
-		lv2_atom_forge_frame_time(forge, frames);
-		osc_forge_message_vararg(&handle->oforge, forge,
-			"/n_set", "isi",
-			id,
-			"gate", 1);
+		ref = lv2_atom_forge_frame_time(forge, frames);
+		if(ref)
+		{
+			ref = osc_forge_message_vararg(&handle->oforge, forge,
+				"/n_set", "isi",
+				id,
+				"gate", 1);
+		}
 	}
 
-	lv2_atom_forge_frame_time(forge, frames);
-	osc_forge_message_vararg(&handle->oforge, forge,
-		"/n_setn", "iiiffff",
-		id, arg_offset, arg_num,
-		cev->x, cev->z, cev->X, cev->Z);
+	ref = lv2_atom_forge_frame_time(forge, frames);
+	if(ref)
+	{
+		ref = osc_forge_message_vararg(&handle->oforge, forge,
+			"/n_setn", "iiiffff",
+			id, arg_offset, arg_num,
+			cev->x, cev->z, cev->X, cev->Z);
+	}
+
+	return ref;
 }
 
-static void
+static LV2_Atom_Forge_Ref
 _osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
@@ -288,17 +304,24 @@ _osc_off(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const int32_t gid = (int32_t)floor(*handle->gid_offset) + cev->gid;
 	const int32_t id = handle->i_group ? gid : sid;
 
+	LV2_Atom_Forge_Ref ref = 1;
+
 	if(handle->i_gate)
 	{
-		lv2_atom_forge_frame_time(forge, frames);
-		osc_forge_message_vararg(&handle->oforge, forge,
-			"/n_set", "isi",
-			id,
-			"gate", 0);
+		ref = lv2_atom_forge_frame_time(forge, frames);
+		if(ref)
+		{
+			ref = osc_forge_message_vararg(&handle->oforge, forge,
+				"/n_set", "isi",
+				id,
+				"gate", 0);
+		}
 	}
+
+	return ref;
 }
 
-static void
+static LV2_Atom_Forge_Ref
 _osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
@@ -309,18 +332,25 @@ _osc_set(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const int32_t arg_offset = (int32_t)floor(*handle->arg_offset);
 	const int32_t arg_num = 4;
 
-	lv2_atom_forge_frame_time(forge, frames);
-	osc_forge_message_vararg(&handle->oforge, forge,
-		"/n_setn", "iiiffff",
-		id, arg_offset, arg_num,
-		cev->x, cev->z, cev->X, cev->Z);
+	LV2_Atom_Forge_Ref ref;
+
+	ref = lv2_atom_forge_frame_time(forge, frames);
+	if(ref)
+	{
+		ref = osc_forge_message_vararg(&handle->oforge, forge,
+			"/n_setn", "iiiffff",
+			id, arg_offset, arg_num,
+			cev->x, cev->z, cev->X, cev->Z);
+	}
+
+	return ref;
 }
 
-static void
+static LV2_Atom_Forge_Ref
 _osc_idle(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 	const chimaera_event_t *cev)
 {
-	// do nothing
+	return 1;
 }
 
 static void
@@ -337,13 +367,14 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge *forge = &handle->forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
 	LV2_Atom_Forge_Frame frame;
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	LV2_Atom_Forge_Ref ref;
+	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
 		int64_t frames = ev->time.frames;
 
-		if(chimaera_event_check_type(&handle->cforge, &ev->body))
+		if(chimaera_event_check_type(&handle->cforge, &ev->body) && ref)
 		{
 			chimaera_event_t cev;
 			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
@@ -351,16 +382,16 @@ run(LV2_Handle instance, uint32_t nsamples)
 			switch(cev.state)
 			{
 				case CHIMAERA_STATE_ON:
-					_osc_on(handle, forge, frames, &cev);
+					ref = _osc_on(handle, forge, frames, &cev);
 					break;
 				case CHIMAERA_STATE_SET:
-					_osc_set(handle, forge, frames, &cev);
+					ref = _osc_set(handle, forge, frames, &cev);
 					break;
 				case CHIMAERA_STATE_OFF:
-					_osc_off(handle, forge, frames, &cev);
+					ref = _osc_off(handle, forge, frames, &cev);
 					break;
 				case CHIMAERA_STATE_IDLE:
-					_osc_idle(handle, forge, frames, &cev);
+					ref = _osc_idle(handle, forge, frames, &cev);
 					break;
 			}
 		}
@@ -419,19 +450,28 @@ run(LV2_Handle instance, uint32_t nsamples)
 				{
 					if(property->body == handle->urid.synth_name[i])
 					{
-						lv2_atom_forge_frame_time(forge, frames);
+						if(ref)
+							ref = lv2_atom_forge_frame_time(forge, frames);
 						LV2_Atom_Forge_Frame obj_frame;
-						lv2_atom_forge_object(forge, &obj_frame, 0, handle->urid.patch_set);
+						if(ref)
+							ref = lv2_atom_forge_object(forge, &obj_frame, 0, handle->urid.patch_set);
 						if(subject)
 						{
-							lv2_atom_forge_key(forge, handle->urid.patch_subject);
-								lv2_atom_forge_urid(forge, subject->body);
+							if(ref)
+								ref = lv2_atom_forge_key(forge, handle->urid.patch_subject);
+							if(ref)
+								ref = lv2_atom_forge_urid(forge, subject->body);
 						}
-						lv2_atom_forge_key(forge, handle->urid.patch_property);
-							lv2_atom_forge_urid(forge, handle->urid.synth_name[i]);
-						lv2_atom_forge_key(forge, handle->urid.patch_value);
-							lv2_atom_forge_string(forge, handle->synth_name[i], strlen(handle->synth_name[i]));
-						lv2_atom_forge_pop(forge, &obj_frame);
+						if(ref)
+							ref = lv2_atom_forge_key(forge, handle->urid.patch_property);
+						if(ref)
+							ref = lv2_atom_forge_urid(forge, handle->urid.synth_name[i]);
+						if(ref)
+							ref = lv2_atom_forge_key(forge, handle->urid.patch_value);
+						if(ref)
+							ref = lv2_atom_forge_string(forge, handle->synth_name[i], strlen(handle->synth_name[i]));
+						if(ref)
+							lv2_atom_forge_pop(forge, &obj_frame);
 
 						break;
 					}
@@ -440,7 +480,10 @@ run(LV2_Handle instance, uint32_t nsamples)
 		}
 	}
 
-	lv2_atom_forge_pop(forge, &frame);
+	if(ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->osc_out);
 }
 
 static void

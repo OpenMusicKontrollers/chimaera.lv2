@@ -1171,15 +1171,11 @@ run(LV2_Handle instance, uint32_t nsamples)
 		handle->list = l;
 		tlsf_free(handle->tlsf, l0);
 	}
+
 	if(handle->ref)
-	{
 		lv2_atom_forge_pop(forge, &frame);
-	}
-	else // clear output buffer
-	{
-		lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
-		lv2_atom_forge_sequence_head(forge, &frame, 0);
-	}
+	else
+		lv2_atom_sequence_clear(handle->osc_out);
 
 	if(handle->comm.restored)
 	{

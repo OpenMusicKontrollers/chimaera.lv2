@@ -110,13 +110,17 @@ activate(LV2_Handle instance)
 	//nothing
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _chim_event(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Ref ref;
 		
-	lv2_atom_forge_frame_time(forge, frames);
-	chimaera_event_forge(&handle->cforge, cev);
+	ref = lv2_atom_forge_frame_time(forge, frames);
+	if(ref)
+		ref = chimaera_event_forge(&handle->cforge, cev);
+
+	return ref;
 }
 
 static void
@@ -143,11 +147,12 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
 	LV2_Atom_Forge_Frame frame;
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	LV2_Atom_Forge_Ref ref;
+	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
-		if(chimaera_event_check_type(&handle->cforge, &ev->body))
+		if(chimaera_event_check_type(&handle->cforge, &ev->body) && ref)
 		{
 			int64_t frames = ev->time.frames;
 			chimaera_event_t cev;
@@ -157,17 +162,20 @@ run(LV2_Handle instance, uint32_t nsamples)
 			if(cev.state == CHIMAERA_STATE_IDLE) // don't check for gid and pid
 			{
 				if(cev.state & state)
-					_chim_event(handle, frames, &cev);
+					ref = _chim_event(handle, frames, &cev);
 			}
 			else // ON, OFF, SET
 			{
 				if( ((1 << cev.gid) & group_mask) && (cev.pid & pid) && (cev.state & state) )
-					_chim_event(handle, frames, &cev);
+					ref = _chim_event(handle, frames, &cev);
 			}
 		}
 	}
 
-	lv2_atom_forge_pop(forge, &frame);
+	if(ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->event_out);
 }
 
 static void

@@ -100,7 +100,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
 	LV2_Atom_Forge_Frame frame;
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	LV2_Atom_Forge_Ref ref;
+	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
@@ -110,13 +111,19 @@ run(LV2_Handle instance, uint32_t nsamples)
 			size_t len = ev->body.size;
 
 			// clone event
-			lv2_atom_forge_frame_time(forge, frames);
-			lv2_atom_forge_raw(forge, &ev->body, len + sizeof(LV2_Atom));
-			lv2_atom_forge_pad(forge, len);
+			if(ref)
+				ref = lv2_atom_forge_frame_time(forge, frames);
+			if(ref)
+				ref = lv2_atom_forge_raw(forge, &ev->body, len + sizeof(LV2_Atom));
+			if(ref)
+				lv2_atom_forge_pad(forge, len);
 		}
 	}
 
-	lv2_atom_forge_pop(forge, &frame);
+	if(ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->event_out);
 }
 
 static void

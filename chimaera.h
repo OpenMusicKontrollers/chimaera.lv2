@@ -202,11 +202,12 @@ chimaera_forge_init(chimaera_forge_t *cforge, LV2_URID_Map *map)
 }
 
 // dump handling
-static inline void
+static inline LV2_Atom_Forge_Ref
 chimaera_dump_forge(chimaera_forge_t *cforge, int32_t *values, uint32_t sensors)
 {
 	LV2_Atom_Forge *forge = &cforge->forge;
 	uint32_t values_size = sensors * sizeof(int32_t);
+	LV2_Atom_Forge_Ref ref;
 
 	const chimaera_dump_t dump = {
 		.cobj = {
@@ -229,8 +230,11 @@ chimaera_dump_forge(chimaera_forge_t *cforge, int32_t *values, uint32_t sensors)
 		}
 	};
 
-	lv2_atom_forge_raw(forge, &dump, sizeof(chimaera_dump_t));
-	lv2_atom_forge_raw(forge, values, values_size); // always a multiple of 8
+	ref = lv2_atom_forge_raw(forge, &dump, sizeof(chimaera_dump_t));
+	if(ref)
+		ref = lv2_atom_forge_raw(forge, values, values_size); // always a multiple of 8
+
+	return ref;
 }
 
 static inline const int32_t *
@@ -259,7 +263,7 @@ chimaera_dump_check_type(const chimaera_forge_t *cforge, const LV2_Atom *atom)
 }
 
 // event handle 
-static inline void
+static inline LV2_Atom_Forge_Ref
 chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 {
 	LV2_Atom_Forge *forge = &cforge->forge;
@@ -333,7 +337,7 @@ chimaera_event_forge(chimaera_forge_t *cforge, const chimaera_event_t *ev)
 		}
 	};
 
-	lv2_atom_forge_raw(forge, &pack, sizeof(chimaera_pack_t));
+	return lv2_atom_forge_raw(forge, &pack, sizeof(chimaera_pack_t));
 }
 
 static inline int

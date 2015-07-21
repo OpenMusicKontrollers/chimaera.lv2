@@ -94,16 +94,22 @@ struct _handle_t {
 	const LV2_Atom_Sequence *osc_in;
 	LV2_Atom_Sequence *event_out;
 	const float *reset_in;
+
+	LV2_Atom_Forge_Ref ref;
 };
 
 // rt
-static inline void
+static inline LV2_Atom_Forge_Ref
 _chim_event(handle_t *handle, int64_t frames, chimaera_event_t *cev)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Ref ref;
 
-	lv2_atom_forge_frame_time(forge, frames);
-	chimaera_event_forge(&handle->cforge, cev);
+	ref = lv2_atom_forge_frame_time(forge, frames);
+	if(ref)
+		ref = chimaera_event_forge(&handle->cforge, cev);
+
+	return ref;
 }
 
 static inline void
@@ -331,7 +337,8 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 			cev.X = src->pos.vx.f11;
 			cev.Z = src->pos.vz.f11;
 
-			_chim_event(handle, handle->rel, &cev);
+			if(handle->ref)
+				handle->ref = _chim_event(handle, handle->rel, &cev);
 		}
 	}
 
@@ -352,7 +359,8 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		else
 			cev.state = CHIMAERA_STATE_SET;
 
-		_chim_event(handle, handle->rel, &cev);
+		if(handle->ref)
+			handle->ref = _chim_event(handle, handle->rel, &cev);
 	}
 
 	if(!n && !handle->tuio2.n)
@@ -367,7 +375,8 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		cev.X = 0.f;
 		cev.Z = 0.f;
 
-		_chim_event(handle, handle->rel, &cev);
+		if(handle->ref)
+			handle->ref = _chim_event(handle, handle->rel, &cev);
 	}
 
 	handle->tuio2.n = n;
@@ -421,7 +430,8 @@ _dummy_on(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, handle->rel, &cev);
+	if(handle->ref)
+		handle->ref = _chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -455,7 +465,8 @@ _dummy_off(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, handle->rel, &cev);
+	if(handle->ref)
+		handle->ref = _chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -517,7 +528,8 @@ _dummy_set(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	cev.X = ref->pos.vx.f11;
 	cev.Z = ref->pos.vz.f11;
 
-	_chim_event(handle, handle->rel, &cev);
+	if(handle->ref)
+		handle->ref = _chim_event(handle, handle->rel, &cev);
 
 	return 1;
 }
@@ -541,7 +553,8 @@ _dummy_idle(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	cev.X = 0.f;
 	cev.Z = 0.f;
 
-	_chim_event(handle, handle->rel, &cev);
+	if(handle->ref)
+		handle->ref = _chim_event(handle, handle->rel, &cev);
 
 	chimaera_dict_clear(handle->dummy.dict);
 
@@ -575,8 +588,10 @@ _dump(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		values[i] = val;
 	}
 
-	lv2_atom_forge_frame_time(forge, handle->rel);
-	chimaera_dump_forge(&handle->cforge, values, sensors);
+	if(handle->ref)
+		handle->ref = lv2_atom_forge_frame_time(forge, handle->rel);
+	if(handle->ref)
+		handle->ref = chimaera_dump_forge(&handle->cforge, values, sensors);
 
 	return 1;
 }
@@ -721,7 +736,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 	uint32_t capacity = handle->event_out->atom.size;
 	LV2_Atom_Forge_Frame frame;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->event_out, capacity);
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	handle->ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 
 	// read incoming OSC
 	LV2_ATOM_SEQUENCE_FOREACH(handle->osc_in, ev)
@@ -731,7 +746,10 @@ run(LV2_Handle instance, uint32_t nsamples)
 		osc_atom_event_unroll(&handle->oforge, obj, NULL, NULL, _message_cb, handle);
 	}
 
-	lv2_atom_forge_pop(forge, &frame);
+	if(handle->ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->event_out);
 }
 
 static void

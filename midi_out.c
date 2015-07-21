@@ -122,23 +122,31 @@ activate(LV2_Handle instance)
 	//nothing
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _midi_event(handle_t *handle, int64_t frames, const uint8_t *m, size_t len)
 {
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
+	LV2_Atom_Forge_Ref ref;
 		
-	lv2_atom_forge_frame_time(forge, frames);
-	lv2_atom_forge_atom(forge, len, handle->uris.midi_MidiEvent);
-	lv2_atom_forge_raw(forge, m, len);
-	lv2_atom_forge_pad(forge, len);
+	ref = lv2_atom_forge_frame_time(forge, frames);
+	if(ref)
+		ref = lv2_atom_forge_atom(forge, len, handle->uris.midi_MidiEvent);
+	if(ref)
+		ref = lv2_atom_forge_raw(forge, m, len);
+	if(ref)
+		lv2_atom_forge_pad(forge, len);
+
+	return ref;
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_add(handle->dict, cev->sid);
 	if(!ref)
-		return;
+		return 1;
+
+	LV2_Atom_Forge_Ref fref;	
 	
 	const float val = handle->bot + cev->x * handle->ran;
 
@@ -151,18 +159,22 @@ _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 		key,
 		vel
 	};
-	_midi_event(handle, frames, note_on, 3);
+	fref = _midi_event(handle, frames, note_on, 3);
 	
 	ref->chn = chn;
 	ref->key = key;
+
+	return fref;
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_del(handle->dict, cev->sid);
 	if(!ref)
-		return;
+		return 1;
+
+	LV2_Atom_Forge_Ref fref;
 
 	const uint8_t chn = ref->chn;
 	const uint8_t key = ref->key;
@@ -173,15 +185,19 @@ _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 		key,
 		vel
 	};
-	_midi_event(handle, frames, note_off, 3);
+	fref = _midi_event(handle, frames, note_off, 3);
+
+	return fref;
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	ref_t *ref = chimaera_dict_ref(handle->dict, cev->sid);
 	if(!ref)
-		return;
+		return 1;
+
+	LV2_Atom_Forge_Ref fref;
 
 	const uint8_t controller = *handle->controller;
 	const float val = handle->bot + cev->x * handle->ran;
@@ -198,8 +214,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 		bnd_lsb,
 		bnd_msb
 	};
-	_midi_event(handle, frames, bend, 3);
-
+	fref = _midi_event(handle, frames, bend, 3);
 
 	const int z_mapping = floor(*handle->z_mapping);
 	const uint16_t eff = cev->z * 0x3fff;
@@ -217,7 +232,8 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 					0x20 | controller,
 					eff_lsb
 				};
-				_midi_event(handle, frames, control_lsb, 3);
+				if(fref)
+					fref = _midi_event(handle, frames, control_lsb, 3);
 			}
 
 			const uint8_t control_msb [3] = {
@@ -225,7 +241,8 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 				controller,
 				eff_msb
 			};
-			_midi_event(handle, frames, control_msb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, control_msb, 3);
 
 			break;
 		}
@@ -236,7 +253,8 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 				key,
 				eff_msb
 			};
-			_midi_event(handle, frames, note_pressure, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, note_pressure, 3);
 
 			break;
 		}
@@ -246,17 +264,22 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 				0xd0 | chn,
 				eff_msb
 			};
-			_midi_event(handle, frames, channel_pressure, 2);
+			if(fref)
+				fref = _midi_event(handle, frames, channel_pressure, 2);
 
 			break;
 		}
 	}
+
+	return fref;
 }
 
-static inline void
+static inline LV2_Atom_Forge_Ref
 _midi_idle(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
 	chimaera_dict_clear(handle->dict);
+
+	return 1;
 }
 
 static void
@@ -285,11 +308,12 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->midi_out, capacity);
 	LV2_Atom_Forge_Frame frame;
-	lv2_atom_forge_sequence_head(forge, &frame, 0);
+	LV2_Atom_Forge_Ref ref;
+	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
 	
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
-		if(chimaera_event_check_type(&handle->cforge, &ev->body))
+		if(chimaera_event_check_type(&handle->cforge, &ev->body) && ref)
 		{
 			const int64_t frames = ev->time.frames;
 			chimaera_event_t cev;
@@ -299,22 +323,25 @@ run(LV2_Handle instance, uint32_t nsamples)
 			switch(cev.state)
 			{
 				case CHIMAERA_STATE_ON:
-					_midi_on(handle, frames, &cev);
+					ref = _midi_on(handle, frames, &cev);
 					// fall-through
 				case CHIMAERA_STATE_SET:
-					_midi_set(handle, frames, &cev);
+					ref = _midi_set(handle, frames, &cev);
 					break;
 				case CHIMAERA_STATE_OFF:
-					_midi_off(handle, frames, &cev);
+					ref = _midi_off(handle, frames, &cev);
 					break;
 				case CHIMAERA_STATE_IDLE:
-					_midi_idle(handle, frames, &cev);
+					ref = _midi_idle(handle, frames, &cev);
 					break;
 			}
 		}
 	}
 
-	lv2_atom_forge_pop(forge, &frame);
+	if(ref)
+		lv2_atom_forge_pop(forge, &frame);
+	else
+		lv2_atom_sequence_clear(handle->midi_out);
 }
 
 static void
