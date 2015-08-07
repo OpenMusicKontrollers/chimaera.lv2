@@ -25,13 +25,13 @@ lv2_descriptor(uint32_t index)
 		case 0:
 			return &filter;
 		case 1:
-			return &control_out;
-		case 2:
-			return &midi_out;
-		case 3:
-			return &osc_out;
-		case 4:
 			return &mapper;
+		case 2:
+			return &control_out;
+		case 3:
+			return &midi_out;
+		case 4:
+			return &osc_out;
 		case 5:
 			return &simulator;
 		case 6:

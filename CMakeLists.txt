@@ -12,7 +12,7 @@ include_directories(${PROJECT_SOURCE_DIR}/tlsf-3.0)
 include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
-set(CMAKE_C_FLAGS "-Wall -std=gnu99 ${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "-Wall -std=gnu99 -fvisibility=hidden ${CMAKE_C_FLAGS}")
 
 set(CHIMAERA_MAJOR_VERSION 0)
 set(CHIMAERA_MINOR_VERSION 1)
@@ -55,13 +55,13 @@ add_library(chimaera MODULE
 	chimaera.c
 	filter.c
 	mapper.c
+	control_out.c
+	midi_out.c
+	osc_out.c
 	simulator.c
 	visualizer.c
 	comm.c
-	driver.c
-	control_out.c
-	midi_out.c
-	osc_out.c)
+	driver.c)
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})
