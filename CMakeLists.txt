@@ -12,7 +12,7 @@ include_directories(${PROJECT_SOURCE_DIR}/tlsf-3.0)
 include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
-set(CMAKE_C_FLAGS "-Wall -std=gnu99 -fvisibility=hidden ${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "-Wall -std=gnu99 -ffast-math -fvisibility=hidden ${CMAKE_C_FLAGS}")
 
 set(CHIMAERA_MAJOR_VERSION 0)
 set(CHIMAERA_MINOR_VERSION 1)

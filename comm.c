@@ -67,7 +67,7 @@ struct _handle_t {
 		LV2_URID log_error;
 		LV2_URID log_trace;
 	} uris;
-	
+
 	LV2_Log_Log *log;
 
 	LV2_Atom_Sequence *osc_out;
@@ -81,7 +81,7 @@ struct _handle_t {
 	LV2_Worker_Schedule *sched;
 	LV2_Worker_Respond_Function respond;
 	LV2_Worker_Respond_Handle target;
-	
+
 	osc_schedule_t *osc_sched;
 	list_t *list;
 	uint8_t mem [POOL_SIZE];
@@ -99,7 +99,7 @@ struct _handle_t {
 		volatile int needs_flushing;
 		char url [512];
 	} comm;
-	
+
 	struct {
 		osc_stream_driver_t driver;
 		osc_stream_t *stream;
@@ -490,7 +490,7 @@ _osc_atom_serialize(handle_t *handle, const char *path, const char *fmt,
 			{
 				break;
 			}
-			
+
 			case 'c':
 			{
 				char c;
@@ -667,7 +667,7 @@ _ui_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 					ptr = osc_set_blob(ptr, end, itr->size, LV2_ATOM_BODY_CONST(itr));
 					break;
 				}
-				
+
 				case 'h':
 				{
 					ptr = osc_set_int64(ptr, end, ((const LV2_Atom_Long *)itr)->body);
@@ -683,7 +683,7 @@ _ui_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 					ptr = osc_set_timetag(ptr, end, ((const LV2_Atom_Long *)itr)->body);
 					break;
 				}
-				
+
 				case 'T':
 				case 'F':
 				case 'N':
@@ -691,7 +691,7 @@ _ui_recv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 				{
 					break;
 				}
-				
+
 				case 'c':
 				{
 					ptr = osc_set_char(ptr, end, ((const LV2_Atom_Int *)itr)->body);
@@ -806,7 +806,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	}
 
 	handle->tlsf = tlsf_create_with_pool(handle->mem, POOL_SIZE);
-	
+
 	chimaera_forge_init(&handle->cforge, handle->map);
 	osc_forge_init(&handle->oforge, handle->map);
 
@@ -851,7 +851,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	handle->data.driver.send_req = _data_send_req;
 	handle->data.driver.send_adv = _data_send_adv;
 	handle->data.driver.free = _data_free;
-	
+
 	strcpy(handle->comm.url, "osc.udp4://chimaera.local:4444");
 	strcpy(handle->data.url, "osc.udp4://:3333");
 
@@ -1126,6 +1126,16 @@ run(LV2_Handle instance, uint32_t nsamples)
 	}
 	lv2_atom_forge_pop(forge, &frame);
 
+	// reschedule scheduled bundles
+	list_t *l;
+	for(l = handle->list; l; l = l->next)
+	{
+		uint64_t time = be64toh(*(uint64_t *)(l->buf + 8));
+
+		int64_t frames = handle->osc_sched->osc2frames(handle->osc_sched->handle, time);
+		l->frames = frames;
+	}
+
 	// read incoming data
 	capacity = handle->osc_out->atom.size;
 	lv2_atom_forge_set_buffer(forge, (uint8_t *)handle->osc_out, capacity);
@@ -1137,9 +1147,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 		varchunk_read_advance(handle->data.from_worker);
 	}
-	
+
 	// handle scheduled bundles
-	list_t *l;
 	for(l = handle->list; l; )
 	{
 		uint64_t time = be64toh(*(uint64_t *)(l->buf + 8));
@@ -1152,7 +1161,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 		}
 		else if(l->frames >= nsamples) // not scheduled for this period
 		{
-			l->frames -= nsamples; // subtract period size
 			l = l->next;
 			continue;
 		}
