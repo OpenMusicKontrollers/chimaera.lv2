@@ -49,7 +49,6 @@ if(${HAS_BUILTIN_ASSUME_ALIGNED})
 endif()
 
 add_library(chimaera MODULE
-	cjson/cJSON.c
 	tlsf-3.0/tlsf.c
 
 	chimaera.c
@@ -85,6 +84,7 @@ if(CHIMAERA_UI_PLUGINS)
 	set(KX_UI_WRAP "")
 
 	add_library(chimaera_ui MODULE
+		cjson/cJSON.c
 		chimaera_ui.c
 		simulator_ui.c
 		comm_ui.c

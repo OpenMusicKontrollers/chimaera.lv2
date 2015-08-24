@@ -65,7 +65,7 @@ static void
 _dump_fill(UI *ui)
 {
 	elm_table_clear(ui->tab, EINA_TRUE);
-	
+
 	for(int i=0; i<ui->sensors; i++)
 	{
 		Evas_Object *edj;
@@ -80,7 +80,7 @@ _dump_fill(UI *ui)
 		edje_object_part_drag_size_set(edj, "sensor", 1.f, 0.f);
 		evas_object_show(north);
 		elm_table_pack(ui->tab, north, i, 0, 1, 1);
-		
+
 		Evas_Object *south = elm_layout_add(ui->tab);
 		elm_layout_file_set(south, ui->theme_path,
 			CHIMAERA_VISUALIZER_UI_URI"/sensor");
@@ -112,7 +112,7 @@ _dump_update(UI *ui)
 		double north_size = rel < 0.f ? -rel : 0.f;
 		double south_size = rel < 0.f ? 0.f : rel;
 		uint8_t red = rel < 0.f ? (-rel)*0xbb : rel*0xbb;
-		
+
 		//printf("%i %i %lf %lf %lf\n", i, values[i], rel, north_size, south_size);
 
 		evas_object_color_set(north, 0xbb, 0xbb-red, 0xbb-red, 0xff);
@@ -168,7 +168,7 @@ _content_get(eo_ui_t *eoui)
 
 	return ui->tab;
 }
-	
+
 static LV2UI_Handle
 instantiate(const LV2UI_Descriptor *descriptor,
 	const char *plugin_uri, const char *bundle_path,
@@ -204,7 +204,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	ui->sensors = 160;
 	ui->write_function = write_function;
 	ui->controller = controller;
-	
+
 	for(int i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
