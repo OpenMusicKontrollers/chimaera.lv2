@@ -12,7 +12,10 @@ include_directories(${PROJECT_SOURCE_DIR}/tlsf-3.0)
 include_directories(${PROJECT_SOURCE_DIR}/cjson)
 include_directories(${PROJECT_SOURCE_DIR}/varchunk)
 
-set(CMAKE_C_FLAGS "-Wall -std=gnu99 -ffast-math -fvisibility=hidden ${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "-std=gnu11 -Wextra -Wno-unused-parameter -ffast-math -fvisibility=hidden ${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "-Wshadow -Wimplicit-function-declaration -Wmissing-prototypes -Wstrict-prototypes ${CMAKE_C_FLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS "-Wl,-z,nodelete ${CMAKE_MODULE_LINKER_FLAGS}")
+add_definitions("-D_GNU_SOURCE=1") # asprintf
 
 set(CHIMAERA_MAJOR_VERSION 0)
 set(CHIMAERA_MINOR_VERSION 1)
@@ -37,6 +40,10 @@ set(LIBS ${LIBS} ${LV2_LDFLAGS})
 pkg_search_module(UV REQUIRED libuv>=1.0)
 include_directories(${UV_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${UV_LDFLAGS})
+
+pkg_search_module(LIBBSD REQUIRED libbsd)
+include_directories(${LIBBSD_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${LIBBSD_LDFLAGS})
 
 option(CHIMAERA_UI_PLUGINS "Build Chimaera UI plugins" ON)
 

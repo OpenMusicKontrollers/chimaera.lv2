@@ -326,7 +326,8 @@ run(LV2_Handle instance, uint32_t nsamples)
 					ref = _midi_on(handle, frames, &cev);
 					// fall-through
 				case CHIMAERA_STATE_SET:
-					ref = _midi_set(handle, frames, &cev);
+					if(ref)
+						ref = _midi_set(handle, frames, &cev);
 					break;
 				case CHIMAERA_STATE_OFF:
 					ref = _midi_off(handle, frames, &cev);

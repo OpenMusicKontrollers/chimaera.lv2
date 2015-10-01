@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <bsd/string.h>
 
 #include <chimaera.h>
 #include <osc.h>
@@ -121,7 +122,7 @@ _state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
 		if(type != handle->forge.String)
 			continue;
 
-		strncpy(handle->synth_name[i], synth_name, STRING_SIZE);
+		strlcpy(handle->synth_name[i], synth_name, STRING_SIZE);
 	}
 
 	return LV2_STATE_SUCCESS;
@@ -136,12 +137,11 @@ static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate,
 	const char *bundle_path, const LV2_Feature *const *features)
 {
-	int i;
 	handle_t *handle = calloc(1, sizeof(handle_t));
 	if(!handle)
 		return NULL;
 
-	for(i=0; features[i]; i++)
+	for(int i=0; features[i]; i++)
 		if(!strcmp(features[i]->URI, LV2_URID__map))
 			handle->map = (LV2_URID_Map *)features[i]->data;
 
@@ -257,6 +257,7 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 					arg_offset + 4, cev->pid,
 					"gate", 1,
 					"out", out);
+				(void)ref;
 			}
 		}
 		else // !handle->i_gate
@@ -268,6 +269,7 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 					handle->synth_name[cev->gid], id, 0, gid,
 					arg_offset + 4, cev->pid,
 					"out", out);
+				(void)ref;
 			}
 		}
 	}
@@ -280,6 +282,7 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 				"/n_set", "isi",
 				id,
 				"gate", 1);
+			(void)ref;
 		}
 	}
 
@@ -423,7 +426,7 @@ run(LV2_Handle instance, uint32_t nsamples)
 				{
 					if(property->body == handle->urid.synth_name[i])
 					{
-						strncpy(handle->synth_name[i], LV2_ATOM_BODY_CONST(value), STRING_SIZE);
+						strlcpy(handle->synth_name[i], LV2_ATOM_BODY_CONST(value), STRING_SIZE);
 						break;
 					}
 				}

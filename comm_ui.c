@@ -658,15 +658,15 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	if(strcmp(plugin_uri, CHIMAERA_COMM_URI))
 		return NULL;
 
-	eo_ui_driver_t driver;
+	eo_ui_driver_t driv;
 	if(descriptor == &comm_eo)
-		driver = EO_UI_DRIVER_EO;
+		driv = EO_UI_DRIVER_EO;
 	else if(descriptor == &comm_ui)
-		driver = EO_UI_DRIVER_UI;
+		driv = EO_UI_DRIVER_UI;
 	else if(descriptor == &comm_x11)
-		driver = EO_UI_DRIVER_X11;
+		driv = EO_UI_DRIVER_X11;
 	else if(descriptor == &comm_kx)
-		driver = EO_UI_DRIVER_KX;
+		driv = EO_UI_DRIVER_KX;
 	else
 		return NULL;
 
@@ -675,7 +675,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 		return NULL;
 
 	eo_ui_t *eoui = &ui->eoui;
-	eoui->driver = driver;
+	eoui->driver = driv;
 	eoui->content_get = _content_get;
 	eoui->w = 1280,
 	eoui->h = 720;

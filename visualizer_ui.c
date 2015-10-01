@@ -66,7 +66,7 @@ _dump_fill(UI *ui)
 {
 	elm_table_clear(ui->tab, EINA_TRUE);
 
-	for(int i=0; i<ui->sensors; i++)
+	for(unsigned i=0; i<ui->sensors; i++)
 	{
 		Evas_Object *edj;
 
@@ -103,7 +103,7 @@ _dump_update(UI *ui)
 {
 	int32_t *values = ui->values;
 
-	for(int i=0; i<ui->sensors; i++)
+	for(unsigned i=0; i<ui->sensors; i++)
 	{
 		Evas_Object *north = elm_table_child_get(ui->tab, i, 0);
 		Evas_Object *south = elm_table_child_get(ui->tab, i, 1);
@@ -179,15 +179,15 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	if(strcmp(plugin_uri, CHIMAERA_VISUALIZER_URI))
 		return NULL;
 
-	eo_ui_driver_t driver;
+	eo_ui_driver_t driv;
 	if(descriptor == &visualizer_eo)
-		driver = EO_UI_DRIVER_EO;
+		driv = EO_UI_DRIVER_EO;
 	else if(descriptor == &visualizer_ui)
-		driver = EO_UI_DRIVER_UI;
+		driv = EO_UI_DRIVER_UI;
 	else if(descriptor == &visualizer_x11)
-		driver = EO_UI_DRIVER_X11;
+		driv = EO_UI_DRIVER_X11;
 	else if(descriptor == &visualizer_kx)
-		driver = EO_UI_DRIVER_KX;
+		driv = EO_UI_DRIVER_KX;
 	else
 		return NULL;
 
@@ -196,7 +196,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 		return NULL;
 
 	eo_ui_t *eoui = &ui->eoui;
-	eoui->driver = driver;
+	eoui->driver = driv;
 	eoui->content_get = _content_get;
 	eoui->w = 1280,
 	eoui->h = 720;
@@ -279,8 +279,8 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 			uint32_t sensors;
 			const int32_t *values = chimaera_dump_deforge(&ui->cforge, atom, &sensors);
 
-			for(int i=0; i<ui->sensors; i++)
-				ui->values[i] = values[i];
+			for(unsigned j=0; j<ui->sensors; j++)
+				ui->values[j] = values[j];
 
 			_dump_update(ui);
 		}
@@ -308,9 +308,9 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 					ref->cev.X = cev.X;
 					ref->cev.Z = cev.Z;
 
-					char buf [64];
-					sprintf(buf, "%i/%i", ref->cev.sid, ref->cev.gid);
-					elm_object_part_text_set(ref->obj, "elm.text", buf);
+					char buf2 [64];
+					sprintf(buf2, "%i/%i", ref->cev.sid, ref->cev.gid);
+					elm_object_part_text_set(ref->obj, "elm.text", buf2);
 					evas_object_show(ref->obj);
 
 					break;

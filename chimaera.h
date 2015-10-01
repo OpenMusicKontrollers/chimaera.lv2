@@ -22,7 +22,6 @@
 
 #include <lv2/lv2plug.in/ns/lv2core/lv2.h>
 #include <lv2/lv2plug.in/ns/ext/atom/atom.h>
-#include <lv2/lv2plug.in/ns/ext/atom/util.h>
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
@@ -77,7 +76,7 @@ extern const LV2_Descriptor osc_out;
 extern const LV2_Descriptor simulator;
 extern const LV2_Descriptor visualizer;
 extern const LV2_Descriptor comm;
-extern const LV2_Descriptor driver;
+extern const LV2_Descriptor driverer;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
@@ -390,28 +389,28 @@ chimaera_event_deforge(const chimaera_forge_t *cforge, const LV2_Atom *atom,
 
 #define CHIMAERA_DICT_INIT(DICT, REF) \
 ({ \
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++) \
+	for(unsigned _i=0; _i<CHIMAERA_DICT_SIZE; _i++) \
 	{ \
-		(DICT)[i].sid = 0; \
-		(DICT)[i].ref = (REF) + i; \
+		(DICT)[_i].sid = 0; \
+		(DICT)[_i].ref = (REF) + _i; \
 	} \
 })
 
 #define CHIMAERA_DICT_FOREACH(DICT, SID, REF) \
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++) \
-		if( (((SID) = (DICT)[i].sid) != 0) && ((REF) = (DICT)[i].ref) )
+	for(unsigned _i=0; _i<CHIMAERA_DICT_SIZE; _i++) \
+		if( (((SID) = (DICT)[_i].sid) != 0) && ((REF) = (DICT)[_i].ref) )
 
 static inline void
 chimaera_dict_clear(chimaera_dict_t *dict)
 {
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+	for(unsigned i=0; i<CHIMAERA_DICT_SIZE; i++)
 		dict[i].sid = 0;
 }
 
 static inline void *
 chimaera_dict_add(chimaera_dict_t *dict, uint32_t sid)
 {
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+	for(unsigned i=0; i<CHIMAERA_DICT_SIZE; i++)
 		if(dict[i].sid == 0)
 		{
 			dict[i].sid = sid;
@@ -424,7 +423,7 @@ chimaera_dict_add(chimaera_dict_t *dict, uint32_t sid)
 static inline void *
 chimaera_dict_del(chimaera_dict_t *dict, uint32_t sid)
 {
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+	for(unsigned i=0; i<CHIMAERA_DICT_SIZE; i++)
 		if(dict[i].sid == sid)
 		{
 			dict[i].sid = 0;
@@ -437,7 +436,7 @@ chimaera_dict_del(chimaera_dict_t *dict, uint32_t sid)
 static inline void *
 chimaera_dict_ref(chimaera_dict_t *dict, uint32_t sid)
 {
-	for(int i=0; i<CHIMAERA_DICT_SIZE; i++)
+	for(unsigned i=0; i<CHIMAERA_DICT_SIZE; i++)
 		if(dict[i].sid == sid)
 			return dict[i].ref;
 

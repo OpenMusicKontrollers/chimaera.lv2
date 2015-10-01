@@ -929,8 +929,8 @@ _worker_api_comm_url(osc_time_t timestamp, const char *path, const char *fmt,
 
 	const char *comm_url;
 	ptr = osc_get_string(ptr, &comm_url);
-
-	strcpy(handle->comm.url, comm_url);
+	if(ptr)
+		strcpy(handle->comm.url, comm_url);
 
 	if(handle->comm.stream)
 		osc_stream_free(handle->comm.stream);
@@ -950,8 +950,8 @@ _worker_api_data_url(osc_time_t timestamp, const char *path, const char *fmt,
 
 	const char *data_url;
 	ptr = osc_get_string(ptr, &data_url);
-
-	strcpy(handle->data.url, data_url);
+	if(ptr)
+		strcpy(handle->data.url, data_url);
 
 	if(handle->data.stream)
 		osc_stream_free(handle->data.stream);

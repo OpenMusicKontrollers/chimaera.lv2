@@ -17,7 +17,12 @@
 
 #include <chimaera.h>
 
-LV2_SYMBOL_EXPORT const LV2_Descriptor*
+#ifdef _WIN32
+__declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+const LV2_Descriptor*
 lv2_descriptor(uint32_t index)
 {
 	switch(index)
@@ -39,7 +44,7 @@ lv2_descriptor(uint32_t index)
 		case 7:
 			return &comm;
 		case 8:
-			return &driver;
+			return &driverer;
 		default:
 			return NULL;
 	}

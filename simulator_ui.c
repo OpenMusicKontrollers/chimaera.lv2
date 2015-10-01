@@ -199,15 +199,15 @@ instantiate(const LV2UI_Descriptor *descriptor,
 	if(strcmp(plugin_uri, CHIMAERA_SIMULATOR_URI))
 		return NULL;
 
-	eo_ui_driver_t driver;
+	eo_ui_driver_t driv;
 	if(descriptor == &simulator_eo)
-		driver = EO_UI_DRIVER_EO;
+		driv = EO_UI_DRIVER_EO;
 	else if(descriptor == &simulator_ui)
-		driver = EO_UI_DRIVER_UI;
+		driv = EO_UI_DRIVER_UI;
 	else if(descriptor == &simulator_x11)
-		driver = EO_UI_DRIVER_X11;
+		driv = EO_UI_DRIVER_X11;
 	else if(descriptor == &simulator_kx)
-		driver = EO_UI_DRIVER_KX;
+		driv = EO_UI_DRIVER_KX;
 	else
 		return NULL;
 
@@ -216,7 +216,7 @@ instantiate(const LV2UI_Descriptor *descriptor,
 		return NULL;
 
 	eo_ui_t *eoui = &ui->eoui;
-	eoui->driver = driver;
+	eoui->driver = driv;
 	eoui->content_get = _content_get;
 	eoui->w = 1280,
 	eoui->h = 720;
@@ -284,9 +284,9 @@ port_event(LV2UI_Handle handle, uint32_t i, uint32_t size, uint32_t urid,
 		int sensors = *(float *)buf;
 		ui->units = sensors / 16;
 
-		char buf [16];
-		sprintf(buf, "%i", sensors);
-		elm_layout_signal_emit(ui->theme, buf, CHIMAERA_SIMULATOR_UI_URI);
+		char buf2 [16];
+		sprintf(buf2, "%i", sensors);
+		elm_layout_signal_emit(ui->theme, buf2, CHIMAERA_SIMULATOR_UI_URI);
 	}
 }
 
