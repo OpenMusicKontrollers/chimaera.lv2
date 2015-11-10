@@ -4,7 +4,6 @@ project(chimaera.lv2)
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/libosc)
-include_directories(${PROJECT_SOURCE_DIR}/libosc_stream)
 include_directories(${PROJECT_SOURCE_DIR}/inlist)
 include_directories(${PROJECT_SOURCE_DIR}/eo_ui.lv2)
 include_directories(${PROJECT_SOURCE_DIR}/osc.lv2)
@@ -66,7 +65,6 @@ add_library(chimaera MODULE
 	osc_out.c
 	simulator.c
 	visualizer.c
-	comm.c
 	driver.c)
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
@@ -91,10 +89,8 @@ if(CHIMAERA_UI_PLUGINS)
 	set(KX_UI_WRAP "")
 
 	add_library(chimaera_ui MODULE
-		cjson/cJSON.c
 		chimaera_ui.c
 		simulator_ui.c
-		comm_ui.c
 		visualizer_ui.c)
 	target_compile_definitions(chimaera_ui PUBLIC -DCHIMAERA_UI_PLUGINS)
 	target_link_libraries(chimaera_ui ${LIBS_UI})

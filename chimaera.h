@@ -45,8 +45,6 @@
 
 // event uri
 #define CHIMAERA_EVENT_URI				CHIMAERA_URI"#event"
-#define CHIMAERA_COMM_URL_URI			CHIMAERA_URI"#commURL"
-#define CHIMAERA_DATA_URL_URI			CHIMAERA_URI"#dataURL"
 
 // state uris
 #define CHIMAERA_STATE_ON_URI			CHIMAERA_URI"#on"
@@ -65,7 +63,6 @@
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
-#define CHIMAERA_COMM_URI					CHIMAERA_URI"#comm"
 #define CHIMAERA_DRIVER_URI				CHIMAERA_URI"#driver"
 
 extern const LV2_Descriptor filter;
@@ -75,7 +72,6 @@ extern const LV2_Descriptor midi_out;
 extern const LV2_Descriptor osc_out;
 extern const LV2_Descriptor simulator;
 extern const LV2_Descriptor visualizer;
-extern const LV2_Descriptor comm;
 extern const LV2_Descriptor driverer;
 
 // ui plugins uris
@@ -90,11 +86,6 @@ extern const LV2_Descriptor driverer;
 #	define CHIMAERA_VISUALIZER_X11_URI	CHIMAERA_URI"#visualizer_x11"
 #	define CHIMAERA_VISUALIZER_KX_URI	CHIMAERA_URI"#visualizer_kx"
 
-#	define CHIMAERA_COMM_EO_URI				CHIMAERA_URI"#comm_eo"
-#	define CHIMAERA_COMM_UI_URI				CHIMAERA_URI"#comm_ui"
-#	define CHIMAERA_COMM_X11_URI			CHIMAERA_URI"#comm_x11"
-#	define CHIMAERA_COMM_KX_URI				CHIMAERA_URI"#comm_kx"
-
 extern const LV2UI_Descriptor simulator_eo;
 extern const LV2UI_Descriptor simulator_ui;
 extern const LV2UI_Descriptor simulator_x11;
@@ -104,11 +95,6 @@ extern const LV2UI_Descriptor visualizer_eo;
 extern const LV2UI_Descriptor visualizer_ui;
 extern const LV2UI_Descriptor visualizer_x11;
 extern const LV2UI_Descriptor visualizer_kx;
-
-extern const LV2UI_Descriptor comm_eo;
-extern const LV2UI_Descriptor comm_ui;
-extern const LV2UI_Descriptor comm_x11;
-extern const LV2UI_Descriptor comm_kx;
 #endif
 
 // bundle enums and structs

@@ -45,15 +45,6 @@ lv2ui_descriptor(uint32_t index)
 		case 7:
 			return &visualizer_kx;
 
-		case 8:
-			return &comm_eo;
-		case 9:
-			return &comm_ui;
-		case 10:
-			return &comm_x11;
-		case 11:
-			return &comm_kx;
-
 		default:
 			return NULL;
 	}
