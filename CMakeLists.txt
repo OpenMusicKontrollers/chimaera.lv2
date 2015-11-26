@@ -62,10 +62,11 @@ add_library(chimaera MODULE
 	mapper.c
 	control_out.c
 	midi_out.c
-	osc_out.c
+	supercollider_out.c
 	simulator.c
 	visualizer.c
-	driver.c)
+	driver.c
+	mogrifier.c)
 target_link_libraries(chimaera ${LIBS})
 set_target_properties(chimaera PROPERTIES PREFIX "")
 install(TARGETS chimaera DESTINATION ${DEST})

@@ -126,3 +126,10 @@ chim:driver
 	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
 	lv2:binary <chimaera@LIB_EXT@> ;
 	rdfs:seeAlso <chimaera.ttl> .
+
+chim:mogrifier
+	a lv2:Plugin ;
+	lv2:minorVersion @CHIMAERA_MINOR_VERSION@ ;
+	lv2:microVersion @CHIMAERA_MICRO_VERSION@ ;
+	lv2:binary <chimaera@LIB_EXT@> ;
+	rdfs:seeAlso <chimaera.ttl> .

@@ -64,6 +64,7 @@
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_DRIVER_URI				CHIMAERA_URI"#driver"
+#define CHIMAERA_MOGRIFIER_URI		CHIMAERA_URI"#mogrifier"
 
 extern const LV2_Descriptor filter;
 extern const LV2_Descriptor mapper;
@@ -73,6 +74,7 @@ extern const LV2_Descriptor osc_out;
 extern const LV2_Descriptor simulator;
 extern const LV2_Descriptor visualizer;
 extern const LV2_Descriptor driverer;
+extern const LV2_Descriptor mogrifier;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
