@@ -168,7 +168,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	{
 		handle->urid.synth_name[i] = handle->map->map(handle->map->handle,
 			synth_name_uri[i]);
-		sprintf(handle->synth_name[i], "synth_%i", i + 1);
+		sprintf(handle->synth_name[i], "synth_%i", i);
 	}
 
 	osc_forge_init(&handle->oforge, handle->map);
