@@ -39,6 +39,12 @@
 osc:schedule
 	a lv2:Feature .
 
+osc:Event
+	a rdfs:Class ,
+		rdfs:Datatype ;
+	rdfs:label "OSC Event" ;
+	rdfs:subClassOf atom:Atom .
+
 # Maintainer
 omk:me
 	a foaf:Person ;
@@ -646,7 +652,9 @@ chim:osc_out
 	  a lv2:OutputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object, patch:Message, osc:Event ;
+		atom:supports atom:Object ;
+		atom:supports patch:Message ;
+		atom:supports osc:Event ;
 		lv2:index 1 ;
 		lv2:symbol "osc_out" ;
 		lv2:name "OSC Output" ;
