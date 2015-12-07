@@ -688,16 +688,7 @@ chim:osc_out
 	lv2:project proj:chimaera ;
 	lv2:extensionData state:interface ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable, osc:schedule ;
-	lv2:requiredFeature urid:map ;
-
-	patch:writable chim:synth_name_1 ;
-	patch:writable chim:synth_name_2 ;
-	patch:writable chim:synth_name_3 ;
-	patch:writable chim:synth_name_4 ;
-	patch:writable chim:synth_name_5 ;
-	patch:writable chim:synth_name_6 ;
-	patch:writable chim:synth_name_7 ;
-	patch:writable chim:synth_name_8 ;
+	lv2:requiredFeature urid:map, state:loadDefaultState ;
 
 	# input event port
 	lv2:port [
@@ -802,6 +793,26 @@ chim:osc_out
 		lv2:minimum 0 ;
 		lv2:maximum 1 ;
 		lv2:portProperty lv2:toggled ;
+	] ;
+
+	patch:writable chim:synth_name_1 ;
+	patch:writable chim:synth_name_2 ;
+	patch:writable chim:synth_name_3 ;
+	patch:writable chim:synth_name_4 ;
+	patch:writable chim:synth_name_5 ;
+	patch:writable chim:synth_name_6 ;
+	patch:writable chim:synth_name_7 ;
+	patch:writable chim:synth_name_8 ;
+
+	state:state [
+		chim:synth_name_1 "synth_0" ;
+		chim:synth_name_2 "synth_1" ;
+		chim:synth_name_3 "synth_2" ;
+		chim:synth_name_4 "synth_3" ;
+		chim:synth_name_5 "synth_4" ;
+		chim:synth_name_6 "synth_5" ;
+		chim:synth_name_7 "synth_6" ;
+		chim:synth_name_8 "synth_7" ;
 	] .
 		
 # Driver Plugin
