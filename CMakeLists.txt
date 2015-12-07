@@ -62,6 +62,7 @@ add_library(chimaera MODULE
 	mapper.c
 	control_out.c
 	midi_out.c
+	mpe_out.c
 	supercollider_out.c
 	simulator.c
 	visualizer.c

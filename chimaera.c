@@ -45,6 +45,8 @@ lv2_descriptor(uint32_t index)
 			return &driverer;
 		case 8:
 			return &mogrifier;
+		case 9:
+			return &mpe_out;
 		default:
 			return NULL;
 	}

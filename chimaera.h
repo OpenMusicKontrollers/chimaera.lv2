@@ -59,12 +59,13 @@
 #define CHIMAERA_FILTER_URI				CHIMAERA_URI"#filter"
 #define CHIMAERA_MAPPER_URI				CHIMAERA_URI"#mapper"
 #define CHIMAERA_CONTROL_OUT_URI	CHIMAERA_URI"#control_out"
-#define CHIMAERA_MIDI_OUT_URI			CHIMAERA_URI"#midi_out"
+#define CHIMAERA_MPE_OUT_URI			CHIMAERA_URI"#mpe_out"
 #define CHIMAERA_OSC_OUT_URI			CHIMAERA_URI"#osc_out"
 #define CHIMAERA_SIMULATOR_URI		CHIMAERA_URI"#simulator"
 #define CHIMAERA_VISUALIZER_URI		CHIMAERA_URI"#visualizer"
 #define CHIMAERA_DRIVER_URI				CHIMAERA_URI"#driver"
 #define CHIMAERA_MOGRIFIER_URI		CHIMAERA_URI"#mogrifier"
+#define CHIMAERA_MIDI_OUT_URI			CHIMAERA_URI"#midi_out"
 
 extern const LV2_Descriptor filter;
 extern const LV2_Descriptor mapper;
@@ -75,6 +76,7 @@ extern const LV2_Descriptor simulator;
 extern const LV2_Descriptor visualizer;
 extern const LV2_Descriptor driverer;
 extern const LV2_Descriptor mogrifier;
+extern const LV2_Descriptor mpe_out;
 
 // ui plugins uris
 #if defined(CHIMAERA_UI_PLUGINS)
