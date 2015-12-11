@@ -646,6 +646,10 @@ chim:mpe_out
 		units:unit units:oct ;
 	] .
 
+chim:synth_name_0
+	a lv2:Parameter ;
+	rdfs:label "Synth Name 0" ;
+	rdfs:range atom:String .
 chim:synth_name_1
 	a lv2:Parameter ;
 	rdfs:label "Synth Name 1" ;
@@ -674,10 +678,6 @@ chim:synth_name_7
 	a lv2:Parameter ;
 	rdfs:label "Synth Name 7" ;
 	rdfs:range atom:String .
-chim:synth_name_8
-	a lv2:Parameter ;
-	rdfs:label "Synth Name 8" ;
-	rdfs:range atom:String .
 
 # Osc Plugin
 chim:osc_out
@@ -695,7 +695,8 @@ chim:osc_out
 	  a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports atom:Object, patch:Message ;
+		atom:supports atom:Object ;
+		atom:supports patch:Message ;
 		lv2:index 0 ;
 		lv2:symbol "event_in" ;
 		lv2:name "Event Input" ;
@@ -795,6 +796,7 @@ chim:osc_out
 		lv2:portProperty lv2:toggled ;
 	] ;
 
+	patch:writable chim:synth_name_0 ;
 	patch:writable chim:synth_name_1 ;
 	patch:writable chim:synth_name_2 ;
 	patch:writable chim:synth_name_3 ;
@@ -802,17 +804,16 @@ chim:osc_out
 	patch:writable chim:synth_name_5 ;
 	patch:writable chim:synth_name_6 ;
 	patch:writable chim:synth_name_7 ;
-	patch:writable chim:synth_name_8 ;
 
 	state:state [
-		chim:synth_name_1 "synth_0" ;
-		chim:synth_name_2 "synth_1" ;
-		chim:synth_name_3 "synth_2" ;
-		chim:synth_name_4 "synth_3" ;
-		chim:synth_name_5 "synth_4" ;
-		chim:synth_name_6 "synth_5" ;
-		chim:synth_name_7 "synth_6" ;
-		chim:synth_name_8 "synth_7" ;
+		chim:synth_name_0 "synth_0" ;
+		chim:synth_name_1 "synth_1" ;
+		chim:synth_name_2 "synth_2" ;
+		chim:synth_name_3 "synth_3" ;
+		chim:synth_name_4 "synth_4" ;
+		chim:synth_name_5 "synth_5" ;
+		chim:synth_name_6 "synth_6" ;
+		chim:synth_name_7 "synth_7" ;
 	] .
 		
 # Driver Plugin

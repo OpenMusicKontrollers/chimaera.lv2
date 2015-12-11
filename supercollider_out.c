@@ -22,32 +22,22 @@
 #include <chimaera.h>
 #include <osc.h>
 #include <lv2_osc.h>
+#include <props.h>
 
-#define BUF_SIZE 2048
 #define SYNTH_NAMES 8
-#define STRING_SIZE 32
+#define STRING_SIZE 256
 
 typedef struct _handle_t handle_t;
 
 struct _handle_t {
-	struct {
-		LV2_URID patch_get;
-		LV2_URID patch_set;
-		LV2_URID patch_subject;
-		LV2_URID patch_property;
-		LV2_URID patch_value;
-
-		LV2_URID subject;
-
-		LV2_URID synth_name [SYNTH_NAMES];
-	} urid;
-
 	char synth_name [STRING_SIZE][SYNTH_NAMES];
 
 	LV2_URID_Map *map;
 	chimaera_forge_t cforge;
 	osc_forge_t oforge;
 	LV2_Atom_Forge forge;
+
+	props_t *props;
 
 	const LV2_Atom_Sequence *event_in;
 	LV2_Atom_Sequence *osc_out;
@@ -65,15 +55,71 @@ struct _handle_t {
 	int i_group;
 };
 
-static const char *synth_name_uri [SYNTH_NAMES] = {
-	CHIMAERA_URI"#synth_name_1",
-	CHIMAERA_URI"#synth_name_2",
-	CHIMAERA_URI"#synth_name_3",
-	CHIMAERA_URI"#synth_name_4",
-	CHIMAERA_URI"#synth_name_5",
-	CHIMAERA_URI"#synth_name_6",
-	CHIMAERA_URI"#synth_name_7",
-	CHIMAERA_URI"#synth_name_8"
+static const props_def_t synth_name_def [SYNTH_NAMES] = {
+	[0] = {
+		.label = "Synth Name 0",
+		.property = CHIMAERA_URI"#synth_name_0",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[1] = {
+		.label = "Synth Name 1",
+		.property = CHIMAERA_URI"#synth_name_1",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[2] = {
+		.label = "Synth Name 2",
+		.property = CHIMAERA_URI"#synth_name_2",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[3] = {
+		.label = "Synth Name 3",
+		.property = CHIMAERA_URI"#synth_name_3",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[4] = {
+		.label = "Synth Name 4",
+		.property = CHIMAERA_URI"#synth_name_4",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[5] = {
+		.label = "Synth Name 5",
+		.property = CHIMAERA_URI"#synth_name_5",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[6] = {
+		.label = "Synth Name 6",
+		.property = CHIMAERA_URI"#synth_name_6",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
+	[7] = {
+		.label = "Synth Name 7",
+		.property = CHIMAERA_URI"#synth_name_7",
+		.access = LV2_PATCH__writable,
+		.type = LV2_ATOM__String,
+		.mode = PROP_MODE_STATIC,
+		.maximum.s = STRING_SIZE // strlen
+	},
 };
 
 static LV2_State_Status
@@ -83,18 +129,7 @@ _state_save(LV2_Handle instance, LV2_State_Store_Function store,
 {
 	handle_t *handle = instance;
 
-	for(int i=0; i<SYNTH_NAMES; i++)
-	{
-		store(
-			state,
-			handle->urid.synth_name[i],
-			handle->synth_name[i],
-			strlen(handle->synth_name[i]) + 1,
-			handle->forge.String,
-			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-	}
-
-	return LV2_STATE_SUCCESS;
+	return props_save(handle->props, &handle->forge, store, state, flags, features);
 }
 
 static LV2_State_Status
@@ -104,28 +139,7 @@ _state_restore(LV2_Handle instance, LV2_State_Retrieve_Function retrieve,
 {
 	handle_t *handle = instance;
 
-	size_t size;
-	uint32_t type;
-	uint32_t flags2;
-
-	for(int i=0; i<SYNTH_NAMES; i++)
-	{
-		const char *synth_name = retrieve(
-			state,
-			handle->urid.synth_name[i],
-			&size,
-			&type,
-			&flags2
-		);
-
-		// check type
-		if(type != handle->forge.String)
-			continue;
-
-		strlcpy(handle->synth_name[i], synth_name, STRING_SIZE);
-	}
-
-	return LV2_STATE_SUCCESS;
+	return props_restore(handle->props, &handle->forge, retrieve, state, flags, features);
 }
 
 static const LV2_State_Interface state_iface = {
@@ -152,27 +166,23 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 		return NULL;
 	}
 
-	handle->urid.patch_get = handle->map->map(handle->map->handle,
-		LV2_PATCH__Get);
-	handle->urid.patch_set = handle->map->map(handle->map->handle,
-		LV2_PATCH__Set);
-	handle->urid.patch_subject = handle->map->map(handle->map->handle,
-		LV2_PATCH__subject);
-	handle->urid.patch_property = handle->map->map(handle->map->handle,
-		LV2_PATCH__property);
-	handle->urid.patch_value = handle->map->map(handle->map->handle,
-		LV2_PATCH__value);
-	handle->urid.subject = handle->map->map(handle->map->handle,
-		descriptor->URI);
-	for(int i=0; i<SYNTH_NAMES; i++)
-	{
-		handle->urid.synth_name[i] = handle->map->map(handle->map->handle,
-			synth_name_uri[i]);
-	}
-
 	osc_forge_init(&handle->oforge, handle->map);
 	chimaera_forge_init(&handle->cforge, handle->map);
 	lv2_atom_forge_init(&handle->forge, handle->map);
+
+	handle->props = props_new(SYNTH_NAMES, descriptor->URI, handle->map, handle);
+	if(!handle->props)
+	{
+		free(handle);
+		return NULL;
+	}
+
+	for(unsigned i=0; i<SYNTH_NAMES; i++)
+	{
+		sprintf(handle->synth_name[i], "synth_%i", i);
+		props_register(handle->props, &synth_name_def[i], NULL, &handle->synth_name[i]);
+	}
+	props_sort(handle->props);
 
 	return handle;
 }
@@ -374,12 +384,14 @@ run(LV2_Handle instance, uint32_t nsamples)
 
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
+		const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
 		int64_t frames = ev->time.frames;
 
-		if(chimaera_event_check_type(&handle->cforge, &ev->body) && ref)
+		if(  !props_advance(handle->props, forge, frames, obj, &ref)
+			&& chimaera_event_check_type(&handle->cforge, &obj->atom) && ref)
 		{
 			chimaera_event_t cev;
-			chimaera_event_deforge(&handle->cforge, &ev->body, &cev);
+			chimaera_event_deforge(&handle->cforge, &obj->atom, &cev);
 
 			switch(cev.state)
 			{
@@ -395,89 +407,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 				case CHIMAERA_STATE_IDLE:
 					ref = _osc_idle(handle, forge, frames, &cev);
 					break;
-			}
-		}
-		else if(lv2_atom_forge_is_object_type(forge, ev->body.type))
-		{
-			const LV2_Atom_Object *obj = (const LV2_Atom_Object *)&ev->body;
-
-			if(obj->body.otype == handle->urid.patch_set)
-			{
-				const LV2_Atom_URID *subject = NULL;
-				const LV2_Atom_URID *property = NULL;
-				const LV2_Atom_String *value = NULL;
-
-				LV2_Atom_Object_Query q[] = {
-					{ handle->urid.patch_subject, (const LV2_Atom **)&subject },
-					{ handle->urid.patch_property, (const LV2_Atom **)&property },
-					{ handle->urid.patch_value, (const LV2_Atom **)&value },
-					LV2_ATOM_OBJECT_QUERY_END
-				};
-				lv2_atom_object_query(obj, q);
-
-				if(subject && (subject->body != handle->urid.subject))
-					continue; // subject not matching
-
-				if(!property || !value || !value->atom.size)
-					continue; // invalid value
-
-				for(int i=0; i<SYNTH_NAMES; i++)
-				{
-					if(property->body == handle->urid.synth_name[i])
-					{
-						strlcpy(handle->synth_name[i], LV2_ATOM_BODY_CONST(value), STRING_SIZE);
-						break;
-					}
-				}
-			}
-			else if(obj->body.otype == handle->urid.patch_get)
-			{
-				const LV2_Atom_URID *subject = NULL;
-				const LV2_Atom_URID *property = NULL;
-
-				LV2_Atom_Object_Query q[] = {
-					{ handle->urid.patch_subject, (const LV2_Atom **)&subject },
-					{ handle->urid.patch_property, (const LV2_Atom **)&property },
-					LV2_ATOM_OBJECT_QUERY_END
-				};
-				lv2_atom_object_query(obj, q);
-
-				if(subject && (subject->body != handle->urid.subject))
-					continue; // subject not matching
-
-				if(!property)
-					continue; // invalid property
-
-				for(int i=0; i<SYNTH_NAMES; i++)
-				{
-					if(property->body == handle->urid.synth_name[i])
-					{
-						if(ref)
-							ref = lv2_atom_forge_frame_time(forge, frames);
-						LV2_Atom_Forge_Frame obj_frame;
-						if(ref)
-							ref = lv2_atom_forge_object(forge, &obj_frame, 0, handle->urid.patch_set);
-						if(subject)
-						{
-							if(ref)
-								ref = lv2_atom_forge_key(forge, handle->urid.patch_subject);
-							if(ref)
-								ref = lv2_atom_forge_urid(forge, subject->body);
-						}
-						if(ref)
-							ref = lv2_atom_forge_key(forge, handle->urid.patch_property);
-						if(ref)
-							ref = lv2_atom_forge_urid(forge, handle->urid.synth_name[i]);
-						if(ref)
-							ref = lv2_atom_forge_key(forge, handle->urid.patch_value);
-						if(ref)
-							ref = lv2_atom_forge_string(forge, handle->synth_name[i], strlen(handle->synth_name[i]));
-						if(ref)
-							lv2_atom_forge_pop(forge, &obj_frame);
-
-						break;
-					}
-				}
 			}
 		}
 	}
@@ -500,7 +429,10 @@ cleanup(LV2_Handle instance)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	free(handle);
+	if(handle->props)
+		props_free(handle->props);
+	if(handle)
+		free(handle);
 }
 
 static const void*
