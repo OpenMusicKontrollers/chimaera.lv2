@@ -588,7 +588,7 @@ chim:midi_out
 chim:mpe_out
 	a lv2:Plugin,
 		lv2:ConverterPlugin;
-	doap:name "Chimaera Midi MPE Out" ;
+	doap:name "Chimaera MPE Out" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
 	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable ;
@@ -644,6 +644,16 @@ chim:mpe_out
 		lv2:maximum 8.0 ;
 		lv2:portProperty lv2:integer ;
 		units:unit units:oct ;
+	] , [
+	  a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 4 ;
+		lv2:symbol "zones" ;
+		lv2:name "Zones" ;
+		lv2:default 2.0 ;
+		lv2:minimum 1.0 ;
+		lv2:maximum 8.0 ;
+		lv2:portProperty lv2:integer ;
 	] .
 
 chim:synth_name_0

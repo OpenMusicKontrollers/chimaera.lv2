@@ -21,12 +21,29 @@
 
 #include <chimaera.h>
 
+#define CHAN_MAX 16
+#define ZONE_MAX (CHAN_MAX / 2)
+
+typedef struct _zone_t zone_t;
+typedef struct _mpe_t mpe_t;
 typedef struct _ref_t ref_t;
 typedef struct _handle_t handle_t;
 
 struct _ref_t {
-	uint8_t voice;
+	uint8_t chan;
 	uint8_t key;
+};
+
+struct _zone_t {
+	uint8_t base;
+	uint8_t span;
+	uint8_t ref;
+};
+
+struct _mpe_t {
+	uint8_t n_zones;
+	zone_t zones [ZONE_MAX];
+	int8_t channels [CHAN_MAX];
 };
 
 struct _handle_t {
@@ -47,8 +64,86 @@ struct _handle_t {
 	const LV2_Atom_Sequence *event_in;
 	const float *sensors;
 	const float *octave;
+	const float *zones;
 	LV2_Atom_Sequence *midi_out;
+
+	uint8_t zon;
+	mpe_t mpe;
 };
+
+static void
+mpe_populate(mpe_t *mpe, uint8_t n_zones)
+{
+	n_zones %= ZONE_MAX; // wrap around if n_zones > ZONE_MAX
+	int8_t rem = CHAN_MAX % n_zones;
+	const uint8_t span = (CHAN_MAX - rem) / n_zones - 1;
+	uint8_t ptr = 0;
+
+	mpe->n_zones = n_zones;
+	zone_t *zones = mpe->zones;
+	int8_t *channels = mpe->channels;
+
+	for(uint8_t i=0;
+		i<n_zones;
+		rem--, ptr += 1 + zones[i++].span)
+	{
+		zones[i].base = ptr;
+		zones[i].ref = 0;
+		zones[i].span = span;
+		if(rem > 0)
+			zones[i].span += 1;
+	}
+
+	for(uint8_t i=0; i<CHAN_MAX; i++)
+		channels[i] = 0;
+}
+
+static uint8_t
+mpe_acquire(mpe_t *mpe, uint8_t zone_idx)
+{
+	zone_idx %= mpe->n_zones; // wrap around if zone_idx > n_zones
+	zone_t *zone = &mpe->zones[zone_idx];
+	int8_t *channels = mpe->channels;
+
+	int8_t min = INT8_MAX;
+	uint8_t pos = zone->ref; // start search at current channel
+	const uint8_t base_1 = zone->base + 1;
+	for(uint8_t i = zone->ref; i < zone->ref + zone->span; i++)
+	{
+		const uint8_t ch = base_1 + (i % zone->span); // wrap to [0..span]
+		if(channels[ch] < min) // check for less occupation
+		{
+			min = channels[ch]; // lower minimum
+			pos = i; // set new minimally occupied channel
+		}
+	}
+
+	const uint8_t ch = base_1 + (pos % zone->span); // wrap to [0..span]
+	if(channels[ch] <= 0) // off since long
+		channels[ch] = 1;
+	else
+		channels[ch] += 1; // increase occupation
+	zone->ref = (pos + 1) % zone->span; // start next search from next channel
+
+	return ch;
+}
+
+static void
+mpe_release(mpe_t *mpe, uint8_t zone_idx, uint8_t ch)
+{
+	zone_idx %= mpe->n_zones; // wrap around if zone_idx > n_zones
+	ch %= CHAN_MAX; // wrap around if ch > CHAN_MAX
+	zone_t *zone = &mpe->zones[zone_idx];
+	int8_t *channels = mpe->channels;
+
+	const uint8_t base_1 = zone->base + 1;
+	for(uint8_t i = base_1; i < base_1 + zone->span; i++)
+	{
+		if( (i == ch) || (channels[i] <= 0) )
+			channels[i] -= 1;
+		// do not decrease occupied channels
+	}
+}
 
 static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor, double rate,
@@ -73,10 +168,6 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	chimaera_forge_init(&handle->cforge, handle->map);
 	CHIMAERA_DICT_INIT(handle->dict, handle->ref);
 
-	// initialize voices
-	for(unsigned i=0; i<CHIMAERA_DICT_SIZE; i++)
-		handle->ref[i].voice = i + 1; //FIXME set voice according to manual
-
 	return handle;
 }
 
@@ -99,6 +190,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 		case 3:
 			handle->octave = (const float *)data;
 			break;
+		case 4:
+			handle->zones = (const float *)data;
+			break;
 		default:
 			break;
 	}
@@ -107,8 +201,9 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 static void
 activate(LV2_Handle instance)
 {
-	//handle_t *handle = (handle_t *)instance;
-	//nothing
+	handle_t *handle = (handle_t *)instance;
+
+	handle->zon = UINT8_MAX;
 }
 
 static inline LV2_Atom_Forge_Ref
@@ -139,18 +234,19 @@ _midi_on(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	
 	const float val = handle->bot + cev->x * handle->ran;
 
-	const uint8_t voice = ref->voice;
+	const uint8_t chan = mpe_acquire(&handle->mpe, cev->gid);
 	const uint8_t key = floor(val);
 	const uint8_t vel = 0x7f;
 
 	const uint8_t note_on [3] = {
-		LV2_MIDI_MSG_NOTE_ON | voice,
+		LV2_MIDI_MSG_NOTE_ON | chan,
 		key,
 		vel
 	};
 	fref = _midi_event(handle, frames, note_on, 3);
 	
 	ref->key = key;
+	ref->chan = chan;
 
 	return fref;
 }
@@ -164,16 +260,18 @@ _midi_off(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 
 	LV2_Atom_Forge_Ref fref;
 
-	const uint8_t voice = ref->voice;
+	const uint8_t chan = ref->chan;
 	const uint8_t key = ref->key;
 	const uint8_t vel = 0x7f;
 
 	const uint8_t note_off [3] = {
-		LV2_MIDI_MSG_NOTE_OFF | voice,
+		LV2_MIDI_MSG_NOTE_OFF | chan,
 		key,
 		vel
 	};
 	fref = _midi_event(handle, frames, note_off, 3);
+
+	mpe_release(&handle->mpe, cev->gid, ref->chan);
 
 	return fref;
 }
@@ -189,7 +287,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 
 	const float val = handle->bot + cev->x * handle->ran;
 	
-	const uint8_t voice = ref->voice;
+	const uint8_t chan = ref->chan;
 	const uint8_t key = ref->key;
 
 	// bender
@@ -198,7 +296,7 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t bnd_lsb = bnd & 0x7f;
 
 	const uint8_t bend [3] = {
-		LV2_MIDI_MSG_BENDER | voice,
+		LV2_MIDI_MSG_BENDER | chan,
 		bnd_lsb,
 		bnd_msb
 	};
@@ -210,13 +308,13 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t z_lsb = z & 0x7f;
 
 	const uint8_t pressure_lsb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_SC1_SOUND_VARIATION | 0x20,
 		z_lsb
 	};
 
 	const uint8_t pressure_msb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_SC1_SOUND_VARIATION,
 		z_msb
 	};
@@ -232,13 +330,13 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t vx_lsb = vx & 0x7f;
 
 	const uint8_t timbre_lsb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_SC5_BRIGHTNESS | 0x20,
 		vx_lsb
 	};
 
 	const uint8_t timbre_msb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_SC5_BRIGHTNESS,
 		vx_msb
 	};
@@ -254,13 +352,13 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 	const uint8_t vz_lsb = vz & 0x7f;
 
 	const uint8_t mod_lsb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_LSB_MODWHEEL,
 		vz_lsb
 	};
 
 	const uint8_t mod_msb [3] = {
-		LV2_MIDI_MSG_CONTROLLER | voice,
+		LV2_MIDI_MSG_CONTROLLER | chan,
 		LV2_MIDI_CTL_MSB_MODWHEEL,
 		vz_msb
 	};
@@ -276,62 +374,106 @@ _midi_set(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 static inline LV2_Atom_Forge_Ref
 _midi_idle(handle_t *handle, int64_t frames, const chimaera_event_t *cev)
 {
-	chimaera_dict_clear(handle->dict);
-
 	LV2_Atom_Forge_Ref fref = 1;
 
-	// create 16/(1+span) zones
-	const unsigned span = 1;
-	for(unsigned z=1; z<=16; z+=1+span)
+	chimaera_dict_clear(handle->dict);
+
+	return fref;
+}
+
+static inline LV2_Atom_Forge_Ref
+_midi_init(handle_t *handle, int64_t frames)
+{
+	LV2_Atom_Forge_Ref fref = 1;
+	mpe_t *mpe = &handle->mpe;
+
+	for(unsigned z=0; z<mpe->n_zones; z++)
 	{
-		const uint8_t zone_lsb [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_RPN_LSB,
-			0x6 // zone
-		};
+		zone_t *zone = &mpe->zones[z];
+		const uint8_t zone_ch = zone->base;
+		const uint8_t voice_ch = zone->base + 1;
 
-		const uint8_t zone_msb [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_RPN_MSB,
-			0x0
-		};
+		// define zone span
+		{
+			const uint8_t lsb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_RPN_LSB,
+				0x6 // zone
+			};
 
-		const uint8_t zone_data [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_MSB_DATA_ENTRY,
-			span
-		};
+			const uint8_t msb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_RPN_MSB,
+				0x0
+			};
 
-		if(fref)
-			fref = _midi_event(handle, frames, zone_lsb, 3);
-		if(fref)
-			fref = _midi_event(handle, frames, zone_msb, 3);
-		if(fref)
-			fref = _midi_event(handle, frames, zone_data, 3);
+			const uint8_t dat [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_MSB_DATA_ENTRY,
+				zone->span
+			};
 
-		const uint8_t bend_range_lsb [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_RPN_LSB,
-			0x0, // bend range
-		};
+			if(fref)
+				fref = _midi_event(handle, frames, lsb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, msb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, dat, 3);
+		}
 
-		const uint8_t bend_range_msb [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_RPN_MSB,
-			0x0,
-		};
-		const uint8_t bend_range_data [3] = {
-			LV2_MIDI_MSG_CONTROLLER | z,
-			LV2_MIDI_CTL_MSB_DATA_ENTRY,
-			60 //TODO
-		};
+		// define zone bend range
+		{
+			const uint8_t lsb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_RPN_LSB,
+				0x0, // bend range
+			};
 
-		if(fref)
-			fref = _midi_event(handle, frames, bend_range_lsb, 3);
-		if(fref)
-			fref = _midi_event(handle, frames, bend_range_msb, 3);
-		if(fref)
-			fref = _midi_event(handle, frames, bend_range_data, 3);
+			const uint8_t msb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_RPN_MSB,
+				0x0,
+			};
+			const uint8_t dat [3] = {
+				LV2_MIDI_MSG_CONTROLLER | zone_ch,
+				LV2_MIDI_CTL_MSB_DATA_ENTRY,
+				2 //TODO make configurable
+			};
+
+			if(fref)
+				fref = _midi_event(handle, frames, lsb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, msb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, dat, 3);
+		}
+
+		// define voice bend range
+		{
+			const uint8_t lsb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | voice_ch,
+				LV2_MIDI_CTL_RPN_LSB,
+				0x0, // bend range
+			};
+
+			const uint8_t msb [3] = {
+				LV2_MIDI_MSG_CONTROLLER | voice_ch,
+				LV2_MIDI_CTL_RPN_MSB,
+				0x0,
+			};
+			const uint8_t dat [3] = {
+				LV2_MIDI_MSG_CONTROLLER | voice_ch,
+				LV2_MIDI_CTL_MSB_DATA_ENTRY,
+				ceil(handle->ran)
+			};
+
+			if(fref)
+				fref = _midi_event(handle, frames, lsb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, msb, 3);
+			if(fref)
+				fref = _midi_event(handle, frames, dat, 3);
+		}
 	}
 
 	return fref;
@@ -342,21 +484,9 @@ run(LV2_Handle instance, uint32_t nsamples)
 {
 	handle_t *handle = (handle_t *)instance;
 
-	int n = *handle->sensors;
-	int oct = *handle->octave;
-
-	if(n != handle->n)
-	{
-		handle->n = n;
-		handle->ran = (float)n / 3.f;
-		handle->ran_1 = 1.f / handle->ran;
-	}
-
-	if(oct != handle->oct)
-	{
-		handle->oct = oct;
-		handle->bot = oct*12.f - 0.5 - (n % 18 / 6.f);
-	}
+	int n = floor(*handle->sensors);
+	int oct = floor(*handle->octave);
+	uint8_t zones = floor(*handle->zones);
 
 	// prepare midi atom forge
 	const uint32_t capacity = handle->midi_out->atom.size;
@@ -365,6 +495,29 @@ run(LV2_Handle instance, uint32_t nsamples)
 	LV2_Atom_Forge_Frame frame;
 	LV2_Atom_Forge_Ref ref;
 	ref = lv2_atom_forge_sequence_head(forge, &frame, 0);
+
+	if(n != handle->n)
+	{
+		handle->n = n;
+		handle->ran = (float)n / 3.f;
+		handle->ran_1 = 1.f / ceil(handle->ran); // MPE only allows integer ranges, thus the ceil
+
+		_midi_init(handle, 0);
+	}
+
+	if(oct != handle->oct)
+	{
+		handle->oct = oct;
+		handle->bot = oct*12.f - 0.5 - (n % 18 / 6.f);
+	}
+
+	if(zones != handle->zon)
+	{
+		handle->zon = zones;
+
+		mpe_populate(&handle->mpe, handle->zon);
+		_midi_init(handle, 0);
+	}
 	
 	LV2_ATOM_SEQUENCE_FOREACH(handle->event_in, ev)
 	{
@@ -401,12 +554,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 }
 
 static void
-deactivate(LV2_Handle instance)
-{
-	//handle_t *handle = (handle_t *)instance;
-}
-
-static void
 cleanup(LV2_Handle instance)
 {
 	handle_t *handle = (handle_t *)instance;
@@ -426,7 +573,7 @@ const LV2_Descriptor mpe_out = {
 	.connect_port		= connect_port,
 	.activate				= activate,
 	.run						= run,
-	.deactivate			= deactivate,
+	.deactivate			= NULL,
 	.cleanup				= cleanup,
 	.extension_data	= extension_data
 };
