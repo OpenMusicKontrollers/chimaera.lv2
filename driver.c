@@ -64,6 +64,9 @@ struct _handle_t {
 	LV2_URID_Map *map;
 	chimaera_forge_t cforge;
 	osc_forge_t oforge;
+
+	LV2_Log_Log *log;
+	LV2_Log_Logger logger;
 	
 	float rate;
 	float s;
@@ -84,16 +87,15 @@ struct _handle_t {
 
 		uint32_t fid;
 		uint64_t last;
+		int32_t missed;
 		uint16_t width;
 		uint16_t height;
-		int ignore;
+		bool ignore;
 		int n;
-		int reset;
 	} tuio2;
 
 	const LV2_Atom_Sequence *osc_in;
 	LV2_Atom_Sequence *event_out;
-	const float *reset_in;
 
 	LV2_Atom_Forge_Ref ref;
 };
@@ -188,6 +190,22 @@ _pos_deriv(handle_t *handle, pos_t *neu, pos_t *old)
 	}
 }
 
+static void
+_tuio2_reset(handle_t *handle)
+{
+	chimaera_dict_clear(handle->tuio2.dict[0]);
+	chimaera_dict_clear(handle->tuio2.dict[1]);
+	handle->tuio2.pos = 0;
+
+	handle->tuio2.fid = 0;
+	handle->tuio2.last = 0;
+	handle->tuio2.missed = 0;
+	handle->tuio2.width = 0;
+	handle->tuio2.height = 0;
+	handle->tuio2.ignore = false;
+	handle->tuio2.n = 0;
+}
+
 // rt
 static int
 _tuio2_frm(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
@@ -204,8 +222,28 @@ _tuio2_frm(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 	ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&fid);
 	ptr = osc_deforge_timestamp(oforge, forge, ptr, &last);
 
-	if( ptr && (fid > handle->tuio2.fid) && (last >= handle->tuio2.last) ) //TODO handle immediate
+	if(!ptr)
+		return 1;
+
+	if(fid > handle->tuio2.fid)
 	{
+		if(last < handle->tuio2.last)
+		{
+			if(handle->log)
+				lv2_log_trace(&handle->logger, "time warp: %08lx must not be smaller than %08lx",
+					last, handle->tuio2.last);
+		}
+
+		if( (fid > handle->tuio2.fid + 1) && (handle->tuio2.fid > 0) )
+		{
+			// we have missed one or several bundles
+			handle->tuio2.missed += fid - 1 - handle->tuio2.fid;
+
+			if(handle->log)
+				lv2_log_trace(&handle->logger, "missed events: %u .. %u (missing: %i)",
+					handle->tuio2.fid + 1, fid - 1, handle->tuio2.missed);
+		}
+
 		uint32_t dim;
 		//const char *source;
 
@@ -224,12 +262,31 @@ _tuio2_frm(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 		handle->tuio2.pos ^= 1; // toggle pos
 		chimaera_dict_clear(handle->tuio2.dict[handle->tuio2.pos]);
 
-		handle->tuio2.ignore = 0;
+		// process this bundle
+		handle->tuio2.ignore = false;
 	}
-	else
+	else // fid <= handle->tuio2.fid
 	{
-		//lprintf(handle, handle->uris.log_trace, "ignore event: %u", fid);
-		handle->tuio2.ignore = 1;
+		// we have found a previously missed bundle
+		handle->tuio2.missed -= 1;
+
+		if(handle->log)
+			lv2_log_trace(&handle->logger, "found event: %u (missing: %i)",
+				fid, handle->tuio2.missed);
+
+		if(handle->tuio2.missed < 0)
+		{
+			// we must assume that the peripheral has been reset
+			_tuio2_reset(handle);
+
+			if(handle->log)
+				lv2_log_trace(&handle->logger, "reset");
+		}
+		else
+		{
+			// ignore this bundle
+			handle->tuio2.ignore = true;
+		}
 	}
 
 	return 1;
@@ -310,18 +367,19 @@ _tuio2_alv(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 
 	for(int i=0; i<n; i++)
 	{
-		ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&sid);
-
-		// already registered in this step?
-		dst = chimaera_dict_ref(handle->tuio2.dict[handle->tuio2.pos], sid);
-		if(!dst)
+		if((ptr = osc_deforge_int32(oforge, forge, ptr, (int32_t *)&sid)))
 		{
-			// register in this step
-			dst = chimaera_dict_add(handle->tuio2.dict[handle->tuio2.pos], sid);
-			// clone from previous step
-			src = chimaera_dict_ref(handle->tuio2.dict[!handle->tuio2.pos], sid);
-			if(dst && src)
-				memcpy(dst, src, sizeof(tuio2_ref_t));
+			// already registered in this step?
+			dst = chimaera_dict_ref(handle->tuio2.dict[handle->tuio2.pos], sid);
+			if(!dst)
+			{
+				// register in this step
+				dst = chimaera_dict_add(handle->tuio2.dict[handle->tuio2.pos], sid);
+				// clone from previous step
+				src = chimaera_dict_ref(handle->tuio2.dict[!handle->tuio2.pos], sid);
+				if(dst && src)
+					memcpy(dst, src, sizeof(tuio2_ref_t));
+			}
 		}
 	}
 
@@ -624,7 +682,9 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	for(int i=0; features[i]; i++)
 	{
 		if(!strcmp(features[i]->URI, LV2_URID__map))
-			handle->map = (LV2_URID_Map *)features[i]->data;
+			handle->map = features[i]->data;
+		else if(!strcmp(features[i]->URI, LV2_LOG__log))
+			handle->log = features[i]->data;
 	}
 
 	if(!handle->map)
@@ -639,6 +699,9 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	CHIMAERA_DICT_INIT(handle->dummy.dict, handle->dummy.ref);
 	CHIMAERA_DICT_INIT(handle->tuio2.dict[0], handle->tuio2.ref[0]);
 	CHIMAERA_DICT_INIT(handle->tuio2.dict[1], handle->tuio2.ref[1]);
+
+	if(handle->log)
+		lv2_log_logger_init(&handle->logger, handle->map, handle->log);
 
 	return handle;
 }
@@ -655,9 +718,6 @@ connect_port(LV2_Handle instance, uint32_t port, void *data)
 			break;
 		case 1:
 			handle->event_out = (LV2_Atom_Sequence *)data;
-			break;
-		case 2:
-			handle->reset_in = (const float *)data;
 			break;
 		default:
 			break;
@@ -727,23 +787,6 @@ run(LV2_Handle instance, uint32_t nsamples)
 	
 	handle->stamp += nsamples;
 
-	// handle TUIO reset toggle
-	int reset = *handle->reset_in > 0.f ? 1 : 0;
-	if(reset && !handle->tuio2.reset)
-	{
-		chimaera_dict_clear(handle->tuio2.dict[0]);
-		chimaera_dict_clear(handle->tuio2.dict[1]);
-		handle->tuio2.pos = 0;
-
-		handle->tuio2.fid = 0;
-		handle->tuio2.last = 0;
-		handle->tuio2.width = 0;
-		handle->tuio2.height = 0;
-		handle->tuio2.ignore = 0;
-		handle->tuio2.n = 0;
-	}
-	handle->tuio2.reset = reset;
-	
 	LV2_Atom_Forge *forge = &handle->cforge.forge;
 	uint32_t capacity = handle->event_out->atom.size;
 	LV2_Atom_Forge_Frame frame;

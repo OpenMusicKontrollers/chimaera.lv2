@@ -27,6 +27,7 @@
 @prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 @prefix state: <http://lv2plug.in/ns/ext/state#> .
 @prefix patch: <http://lv2plug.in/ns/ext/patch#> .
+@prefix log:	<http://lv2plug.in/ns/ext/log#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix kx:		<http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
 
@@ -833,7 +834,7 @@ chim:driver
 	doap:name "Chimaera Driver" ;
 	doap:license lic:Artistic-2.0 ;
 	lv2:project proj:chimaera ;
-	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable;
+	lv2:optionalFeature lv2:isLive, lv2:hardRTCapable, log:log ;
 	lv2:requiredFeature urid:map ;
 
 	lv2:port [
@@ -857,17 +858,6 @@ chim:driver
 		lv2:symbol "event_out" ;
 		lv2:name "Event Output" ;
 		lv2:designation lv2:control ;
-	] , [
-	# reset input port
-	  a lv2:InputPort ,
-			lv2:ControlPort ;
-		lv2:index 2 ;
-		lv2:symbol "reset" ;
-		lv2:name "TUIO2 Reset" ;
-		lv2:default 0.0 ;
-		lv2:minimum 0.0 ;
-		lv2:maximum 1.0 ;
-		lv2:portProperty lv2:toggled ;
 	] .
 
 # Mogrifier Plugin
