@@ -181,7 +181,7 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	for(unsigned i=0; (i<SYNTH_NAMES) && urid; i++)
 	{
 		sprintf(handle->synth_name[i], "synth_%i", i);
-		urid = props_register(handle->props, &synth_name_def[i], NULL, &handle->synth_name[i]);
+		urid = props_register(handle->props, &synth_name_def[i], PROP_EVENT_NONE, NULL, &handle->synth_name[i]);
 	}
 	if(urid)
 	{
