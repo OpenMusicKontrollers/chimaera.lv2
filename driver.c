@@ -769,9 +769,9 @@ _message_cb(const char *path, const char *fmt, const LV2_Atom_Tuple *args,
 {
 	for(const method_t *meth = methods; meth->cb; meth++)
 	{
-		if(!meth->path || !strcmp(meth->path, path))
+		if(path && (!meth->path || !strcmp(meth->path, path)) )
 		{
-			if(!meth->fmt || !strcmp(meth->fmt, fmt))
+			if(fmt && (!meth->fmt || !strcmp(meth->fmt, fmt)) )
 			{
 				if(meth->cb(path, fmt, args, data))
 					break; // event handled, break
