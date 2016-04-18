@@ -28,17 +28,23 @@
 #define STRING_SIZE 256
 #define MAX_NPROPS (SYNTH_NAMES)
 
+typedef struct _plugstate_t plugstate_t;
 typedef struct _handle_t handle_t;
 
-struct _handle_t {
+struct _plugstate_t {
 	char synth_name [STRING_SIZE][SYNTH_NAMES];
+};
 
+struct _handle_t {
 	LV2_URID_Map *map;
 	chimaera_forge_t cforge;
 	osc_forge_t oforge;
 	LV2_Atom_Forge forge;
 
 	PROPS_T(props, MAX_NPROPS);
+
+	plugstate_t state;
+	plugstate_t stash;
 
 	const LV2_Atom_Sequence *event_in;
 	LV2_Atom_Sequence *osc_out;
@@ -56,71 +62,25 @@ struct _handle_t {
 	int i_group;
 };
 
+#define SYNTH_NAME(NUM) \
+{ \
+	.label = "Synth Name "#NUM, \
+	.property = CHIMAERA_URI"#synth_name_"#NUM, \
+	.access = LV2_PATCH__writable, \
+	.type = LV2_ATOM__String, \
+	.mode = PROP_MODE_STATIC, \
+	.max_size = STRING_SIZE \
+}
+
 static const props_def_t synth_name_def [SYNTH_NAMES] = {
-	[0] = {
-		.label = "Synth Name 0",
-		.property = CHIMAERA_URI"#synth_name_0",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[1] = {
-		.label = "Synth Name 1",
-		.property = CHIMAERA_URI"#synth_name_1",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[2] = {
-		.label = "Synth Name 2",
-		.property = CHIMAERA_URI"#synth_name_2",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[3] = {
-		.label = "Synth Name 3",
-		.property = CHIMAERA_URI"#synth_name_3",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[4] = {
-		.label = "Synth Name 4",
-		.property = CHIMAERA_URI"#synth_name_4",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[5] = {
-		.label = "Synth Name 5",
-		.property = CHIMAERA_URI"#synth_name_5",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[6] = {
-		.label = "Synth Name 6",
-		.property = CHIMAERA_URI"#synth_name_6",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
-	[7] = {
-		.label = "Synth Name 7",
-		.property = CHIMAERA_URI"#synth_name_7",
-		.access = LV2_PATCH__writable,
-		.type = LV2_ATOM__String,
-		.mode = PROP_MODE_STATIC,
-		.maximum.s = STRING_SIZE // strlen
-	},
+	[0] = SYNTH_NAME(1),
+	[1] = SYNTH_NAME(2),
+	[2] = SYNTH_NAME(3),
+	[3] = SYNTH_NAME(4),
+	[4] = SYNTH_NAME(5),
+	[5] = SYNTH_NAME(6),
+	[6] = SYNTH_NAME(7),
+	[7] = SYNTH_NAME(8)
 };
 
 static LV2_State_Status
@@ -180,14 +140,11 @@ instantiate(const LV2_Descriptor* descriptor, double rate,
 	LV2_URID urid = 1;
 	for(unsigned i=0; (i<SYNTH_NAMES) && urid; i++)
 	{
-		sprintf(handle->synth_name[i], "synth_%i", i);
-		urid = props_register(&handle->props, &synth_name_def[i], PROP_EVENT_NONE, NULL, &handle->synth_name[i]);
+		sprintf(handle->state.synth_name[i], "synth_%i", i);
+		urid = props_register(&handle->props, &synth_name_def[i], handle->state.synth_name[i], handle->stash.synth_name[i]);
 	}
-	if(urid)
-	{
-		props_sort(&handle->props);
-	}
-	else
+
+	if(!urid)
 	{
 		free(handle);
 		return NULL;
@@ -271,7 +228,7 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 			{
 				ref = osc_forge_message_vararg(&handle->oforge, forge,
 					"/s_new", "siiiiisisi",
-					handle->synth_name[cev->gid], id, 0, gid,
+					handle->state.synth_name[cev->gid], id, 0, gid,
 					arg_offset + 4, cev->pid,
 					"gate", 1,
 					"out", out);
@@ -284,7 +241,7 @@ _osc_on(handle_t *handle, LV2_Atom_Forge *forge, int64_t frames,
 			{
 				ref = osc_forge_message_vararg(&handle->oforge, forge,
 					"/s_new", "siiiiisi",
-					handle->synth_name[cev->gid], id, 0, gid,
+					handle->state.synth_name[cev->gid], id, 0, gid,
 					arg_offset + 4, cev->pid,
 					"out", out);
 				(void)ref;
